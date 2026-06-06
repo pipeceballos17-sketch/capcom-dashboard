@@ -1,267 +1,579 @@
-<!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<!doctype html>
+<html lang="es" data-theme="light">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Houston · CAPCOM</title>
+<title>Houston</title>
+<!--
+  Static replica of the Houston desktop UI (LIGHT theme) acting as the shell for
+  the CAPCOM agent-to-agent handshake demo.
+
+  - Pure HTML/CSS/JS. No build, no engine, no Tauri.
+  - Design tokens copied verbatim from ui/core/src/globals.css (:root = light).
+  - The functional part REUSES the existing proxy (does NOT re-implement relay
+    or tokens): POST /api/action {side,op,payload} and GET /api/pending.
+
+  DEPLOY: drop this file in as the index of the `capcom-dashboard` Vercel repo
+  (same origin as /api/*). If you host it on a different origin, set API_BASE
+  below to the proxy's absolute URL AND make the proxy send CORS headers.
+-->
 <style>
-  [data-theme="dark"]{--bg:#1e1e1e;--fg:#e5e5e5;--card:#282828;--primary:#e5e5e5;--primary-fg:#141414;--secondary:#252525;--muted-fg:#9a9a9a;--accent:rgba(255,255,255,0.08);--destructive:#ef4444;--border:rgba(128,128,128,0.12);--sidebar:#171717;--sidebar-border:rgba(255,255,255,0.08);--sidebar-accent:rgba(255,255,255,0.10);--success:#22c55e;--warning:#eab308;--a:#F0997B;--b:#5DCAA5;--relay:#AFA9EC;--radius:0.5rem;}
-  *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--fg);height:100vh;overflow:hidden;font-family:ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,Arial,sans-serif;display:flex;}
-  .sidebar{width:230px;background:var(--sidebar);border-right:1px solid var(--sidebar-border);display:flex;flex-direction:column;flex-shrink:0;}
-  .brand{padding:16px 18px;font-weight:600;font-size:15px;display:flex;align-items:center;gap:9px;border-bottom:1px solid var(--sidebar-border);}
-  .brand .logo{width:22px;height:22px;border-radius:6px;background:var(--primary);color:var(--primary-fg);display:grid;place-items:center;font-size:13px;font-weight:700;}
-  .section{padding:14px 12px 6px;font-size:11px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:0.06em;}
-  .nav-item{margin:1px 8px;padding:8px 10px;border-radius:var(--radius);font-size:13.5px;display:flex;align-items:center;gap:9px;cursor:pointer;}
-  .nav-item:hover{background:var(--sidebar-accent);}
-  .nav-item.active{background:var(--sidebar-accent);font-weight:500;}
-  .main{flex:1;display:flex;flex-direction:column;overflow:hidden;}
-  .topbar{height:52px;border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 22px;gap:12px;flex-shrink:0;}
-  .topbar h1{font-size:15px;font-weight:600;}
-  .topbar .desc{font-size:12.5px;color:var(--muted-fg);}
-  .topbar .live{margin-left:auto;font-size:12px;color:var(--success);display:flex;align-items:center;gap:7px;}
-  .topbar .live::before{content:'';width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse 2s infinite;}
-  @keyframes pulse{0%,100%{opacity:1}50%{opacity:0.35}}
-  .composer{display:flex;gap:9px;padding:16px 22px 10px;}
-  .composer input{flex:1;font-family:inherit;font-size:13.5px;padding:11px 14px;border-radius:var(--radius);border:1px solid var(--border);background:var(--card);color:var(--fg);outline:none;}
-  .composer input:focus{border-color:rgba(127,119,221,0.5);}
-  .composer input::placeholder{color:var(--muted-fg);}
-  .composer .send{font-family:inherit;font-size:13px;font-weight:600;padding:11px 18px;border-radius:var(--radius);background:var(--primary);color:var(--primary-fg);border:none;cursor:pointer;white-space:nowrap;}
-  .composer .send:hover{opacity:.9;}
-  .composer .send:disabled{opacity:.5;cursor:default;}
-  .presets-lbl{font-size:12px;color:var(--muted-fg);align-self:center;}
-  .src-badge{display:inline-block;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.05em;padding:2px 7px;border-radius:9999px;margin-left:7px;}
-  .src-badge.claude{background:rgba(127,119,221,0.2);color:var(--relay);}
-  .src-badge.fallback{background:var(--secondary);color:var(--muted-fg);}
-  .toolbar{display:flex;gap:8px;padding:4px 22px 14px;flex-wrap:wrap;border-bottom:1px solid var(--border);}
-  .mission-btn{font-family:inherit;font-size:12.5px;font-weight:500;padding:8px 12px;border-radius:var(--radius);border:1px solid var(--border);background:transparent;color:var(--fg);cursor:pointer;display:flex;align-items:center;gap:7px;transition:all .15s;}
-  .mission-btn:hover{background:var(--accent);}
-  .mission-btn .ix{width:16px;height:16px;border-radius:4px;display:grid;place-items:center;font-size:10px;font-weight:700;}
-  .stage{flex:1;display:grid;grid-template-columns:1fr 150px 1fr;align-items:start;gap:0;padding:34px 30px;overflow:hidden;position:relative;}
-  .agent{display:flex;flex-direction:column;align-items:center;}
-  .avatar{width:80px;height:80px;border-radius:20px;display:grid;place-items:center;font-size:34px;border:1px solid;transition:all .3s;}
-  .agent.a .avatar{background:rgba(216,90,48,0.16);border-color:rgba(216,90,48,0.45);}
-  .agent.b .avatar{background:rgba(29,158,117,0.16);border-color:rgba(29,158,117,0.45);}
-  .agent.active .avatar{transform:scale(1.06);box-shadow:0 0 0 4px rgba(255,255,255,0.05);}
-  .agent .nm{font-size:16px;font-weight:600;margin-top:11px;}
-  .agent .rl{font-size:11.5px;color:var(--muted-fg);}
-  .agent .tn{font-size:10.5px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:0.08em;margin-top:3px;}
-  .bubbles{margin-top:18px;width:100%;max-width:300px;display:flex;flex-direction:column;gap:9px;}
-  .agent.a .bubbles{align-items:flex-start;}
-  .agent.b .bubbles{align-items:flex-end;}
-  .bubble{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 13px;font-size:12.5px;line-height:1.45;max-width:280px;animation:pop .3s ease;}
-  .agent.a .bubble{border-bottom-left-radius:3px;}
-  .agent.b .bubble{border-bottom-right-radius:3px;}
-  .bubble.gate{border-color:rgba(234,179,8,0.4);}
-  .bubble .lbl{font-size:9.5px;text-transform:uppercase;letter-spacing:0.06em;color:var(--warning);margin-bottom:5px;font-weight:600;}
-  .bubble .subj{font-weight:600;margin-bottom:3px;}
-  .bubble .terms{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
-  .bubble .term{font-size:10px;color:var(--muted-fg);background:var(--secondary);border-radius:5px;padding:2px 6px;}
-  .bubble .term b{color:var(--fg);font-weight:500;}
-  .bubble .acts{display:flex;gap:7px;margin-top:10px;}
-  .bubble button{font-family:inherit;font-size:11.5px;font-weight:500;padding:6px 11px;border-radius:7px;cursor:pointer;border:1px solid var(--border);}
-  .bubble .ok{background:var(--primary);color:var(--primary-fg);border:none;flex:1;}
-  .bubble .no{background:transparent;color:var(--muted-fg);}
-  .bubble .no:hover{color:var(--destructive);border-color:var(--destructive);}
-  @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.96)}to{opacity:1;transform:none}}
-  .relay{display:flex;flex-direction:column;align-items:center;padding-top:8px;}
-  .relay .hub{width:54px;height:54px;border-radius:50%;background:rgba(127,119,221,0.16);border:1px solid rgba(127,119,221,0.5);display:grid;place-items:center;font-size:22px;}
-  .relay .lab{font-size:10px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:0.1em;margin-top:8px;}
-  .relay .sub{font-size:10px;color:var(--muted-fg);margin-top:2px;text-align:center;line-height:1.4;}
-  .wire{position:absolute;top:74px;height:2px;background:linear-gradient(90deg,transparent,rgba(128,128,128,0.25),transparent);}
-  .envelope{position:absolute;top:64px;font-size:20px;opacity:0;pointer-events:none;}
-  .envelope.fly-right{animation:flyR 1.2s ease forwards;}
-  .envelope.fly-left{animation:flyL 1.2s ease forwards;}
-  @keyframes flyR{0%{opacity:0;left:32%}15%{opacity:1}85%{opacity:1}100%{opacity:0;left:64%}}
-  @keyframes flyL{0%{opacity:0;left:64%}15%{opacity:1}85%{opacity:1}100%{opacity:0;left:32%}}
-  .status-row{display:flex;gap:12px;justify-content:center;padding:0 30px 18px;}
-  .pill{background:var(--secondary);border:1px solid var(--border);border-radius:9px;padding:9px 15px;font-size:12px;display:flex;align-items:center;gap:9px;transition:all .3s;}
-  .pill .dot{width:20px;height:20px;border-radius:50%;display:grid;place-items:center;font-size:11px;}
-  .pill.wait .dot{background:rgba(234,179,8,0.2);color:var(--warning);}
-  .pill.done .dot{background:rgba(34,197,94,0.2);color:var(--success);}
-  .pill.done{border-color:rgba(34,197,94,0.3);}
-  .log{border-top:1px solid var(--border);padding:9px 22px;max-height:78px;overflow-y:auto;flex-shrink:0;}
-  .log .e{font-size:11.5px;color:var(--muted-fg);padding:2px 0;display:flex;gap:10px;}
-  .log .e time{opacity:.6;font-variant-numeric:tabular-nums;}
-  .log .e.ok{color:var(--fg);}
+  /* ── Tokens (ui/core/src/globals.css :root — LIGHT) ──────────────── */
+  :root {
+    --background:#ffffff; --foreground:#0d0d0d;
+    --card:#ffffff; --card-fg:#0d0d0d;
+    --primary:#0d0d0d; --primary-fg:#ffffff;
+    --secondary:#f5f5f5; --secondary-fg:#0d0d0d;
+    --muted:#f5f5f5; --muted-fg:#8e8e8e;
+    --accent:rgba(0,0,0,0.07); --accent-fg:#424242;
+    --destructive:#e02e2a; --destructive-fg:#ffffff;
+    --border:rgba(0,0,0,0.06); --input:#e3e3e3; --ring:#0d0d0d;
+    --sidebar:#f5f5f5; --sidebar-fg:#0d0d0d; --sidebar-border:rgba(0,0,0,0.06);
+    --success:#00a240; --success-fg:#ffffff;
+    --warning:#e0ac00; --warning-fg:#ffffff;
+    --radius:0.5rem;
+    --font: ui-sans-serif, -apple-system, "system-ui", "Segoe UI", Helvetica,
+            "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji";
+  }
+
+  * { box-sizing:border-box; }
+  html,body { height:100%; }
+  body {
+    margin:0; overflow:hidden;
+    background:var(--background); color:var(--foreground);
+    font-family:var(--font);
+    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
+    font-size:14px;
+  }
+  button { font-family:inherit; cursor:pointer; border:none; background:none; }
+  ::-webkit-scrollbar { width:8px; height:8px; }
+  ::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.12); border-radius:9999px; }
+
+  .app { display:flex; height:100vh; }
+
+  /* ── Sidebar (ui/layout/src/sidebar.tsx) ─────────────────────────── */
+  .sidebar {
+    width:220px; flex-shrink:0; height:100%;
+    background:var(--sidebar); color:var(--sidebar-fg);
+    display:flex; flex-direction:column;
+    border-right:1px solid var(--sidebar-border);
+  }
+  .ws-switcher {
+    display:flex; align-items:center; gap:8px; justify-content:space-between;
+    padding:14px 12px 10px 14px;
+  }
+  .ws-switcher .ws-left { display:flex; align-items:center; gap:8px; min-width:0; }
+  .ws-logo {
+    width:26px; height:26px; border-radius:8px; background:var(--primary);
+    color:var(--primary-fg); display:flex; align-items:center; justify-content:center;
+    font-weight:700; font-size:13px; flex-shrink:0;
+  }
+  .ws-name { font-weight:600; font-size:14px; }
+  .nav { padding:4px 8px; display:flex; flex-direction:column; gap:2px; }
+  .nav-item {
+    display:flex; align-items:center; gap:10px; width:100%;
+    padding:7px 10px; border-radius:var(--radius);
+    color:var(--foreground); font-size:13.5px; text-align:left;
+    transition:background .12s;
+  }
+  .nav-item:hover { background:var(--accent); }
+  .nav-item.active { background:var(--accent); font-weight:500; }
+  .nav-item svg { width:17px; height:17px; opacity:.85; flex-shrink:0; }
+
+  .section-label { padding:12px 12px 4px; font-size:12px; font-weight:500; color:var(--muted-fg); }
+  .agents { flex:1; min-height:0; overflow-y:auto; padding:0 8px; display:flex; flex-direction:column; gap:1px; }
+  .agent-row {
+    display:flex; align-items:center; gap:9px; width:100%;
+    padding:7px 8px; border-radius:var(--radius); transition:background .12s; text-align:left;
+  }
+  .agent-row:hover { background:var(--accent); }
+  .agent-row.active { background:var(--accent); }
+  .avatar {
+    width:22px; height:22px; border-radius:9999px; flex-shrink:0;
+    display:flex; align-items:center; justify-content:center;
+    color:#fff; font-size:10px; font-weight:700;
+  }
+  .agent-row .name { flex:1; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .badge-num {
+    min-width:18px; height:18px; padding:0 5px; border-radius:9999px;
+    background:var(--accent); color:var(--accent-fg);
+    font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center;
+  }
+  .add-agent {
+    display:flex; align-items:center; gap:9px; width:100%;
+    padding:8px; margin-top:2px; border-radius:var(--radius);
+    color:var(--muted-fg); font-size:13.5px; transition:background .12s;
+  }
+  .add-agent:hover { background:var(--accent); color:var(--foreground); }
+  .add-agent svg { width:16px; height:16px; }
+  .sidebar-footer {
+    padding:10px 12px; border-top:1px solid var(--sidebar-border);
+    display:flex; align-items:center; gap:9px;
+  }
+
+  /* ── Main area ────────────────────────────────────────────────────── */
+  .main { flex:1; min-width:0; display:flex; flex-direction:column; height:100%; }
+  .topbar { padding:16px 24px 0; }
+  .topbar-row { display:flex; align-items:center; gap:12px; }
+  .page-title { font-size:24px; font-weight:600; letter-spacing:-0.01em; margin:0; flex:1; }
+  .search {
+    display:flex; align-items:center; gap:8px;
+    background:var(--secondary); border:1px solid var(--border);
+    border-radius:9999px; padding:7px 14px; width:240px; color:var(--muted-fg);
+  }
+  .search input { border:none; outline:none; background:none; flex:1; font-size:13px; color:var(--foreground); }
+  .search svg { width:15px; height:15px; }
+  .select-pill {
+    display:flex; align-items:center; gap:6px;
+    background:var(--secondary); border:1px solid var(--border);
+    border-radius:9999px; padding:7px 14px; font-size:13px; color:var(--foreground);
+  }
+  .btn-primary {
+    display:inline-flex; align-items:center; gap:8px;
+    background:var(--primary); color:var(--primary-fg);
+    border-radius:9999px; padding:8px 16px; font-size:13px; font-weight:500;
+    transition:opacity .12s;
+  }
+  .btn-primary:hover { opacity:.9; }
+  .btn-primary .dot { width:7px; height:7px; border-radius:9999px; background:var(--primary-fg); }
+
+  .tabs { display:flex; gap:4px; margin-top:16px; border-bottom:1px solid var(--border); }
+  .tab {
+    padding:8px 12px; font-size:13.5px; color:var(--muted-fg);
+    border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .12s;
+  }
+  .tab:hover { color:var(--foreground); }
+  .tab.active { color:var(--foreground); font-weight:500; border-bottom-color:var(--primary); }
+
+  /* ── Compose banner (CAPCOM) ──────────────────────────────────────── */
+  .compose {
+    margin:16px 24px 0; padding:14px 16px;
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    box-shadow:0 1px 2px rgba(0,0,0,0.04);
+  }
+  .compose-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
+  .compose-head svg { width:16px; height:16px; }
+  .compose-head .t { font-size:13px; font-weight:600; }
+  .compose-head .relay {
+    margin-left:auto; font-size:11px; color:var(--muted-fg);
+    display:flex; align-items:center; gap:6px;
+  }
+  .relay-dot { width:7px; height:7px; border-radius:9999px; background:var(--success); }
+  .compose-row { display:flex; gap:10px; align-items:stretch; }
+  .compose-row textarea {
+    flex:1; resize:none; min-height:42px; max-height:120px;
+    border:1px solid var(--input); border-radius:10px; padding:10px 12px;
+    font-family:inherit; font-size:13px; color:var(--foreground); outline:none;
+  }
+  .compose-row textarea:focus { border-color:var(--ring); }
+  .compose-actions { display:flex; flex-direction:column; gap:6px; }
+  .src-badge {
+    font-size:11px; padding:3px 9px; border-radius:9999px; align-self:flex-start;
+    display:none;
+  }
+  .src-badge.claude { background:rgba(0,162,64,0.12); color:#00813a; display:inline-flex; }
+  .src-badge.fallback { background:var(--accent); color:var(--accent-fg); display:inline-flex; }
+
+  /* ── Kanban (ui/board/src/kanban-column.tsx + kanban-card.tsx) ────── */
+  .board { flex:1; min-height:0; display:flex; gap:12px; padding:16px 24px 24px; overflow:hidden; }
+  .col {
+    flex:1; min-width:180px; height:100%; display:flex; flex-direction:column;
+    background:var(--secondary); border-radius:12px;
+  }
+  .col-head { padding:10px 12px; display:flex; align-items:center; justify-content:center; gap:6px; flex-shrink:0; }
+  .col-head h3 { margin:0; font-size:14px; font-weight:500; }
+  .col-count { font-size:12px; color:rgba(142,142,142,0.8); font-variant-numeric:tabular-nums; }
+  .col-body { flex:1; overflow-y:auto; padding:4px 6px 8px; display:flex; flex-direction:column; gap:6px; }
+
+  .card {
+    background:var(--card); border:1px solid var(--border); border-radius:12px;
+    padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.04);
+    transition:box-shadow .2s, border-color .2s; animation:cardIn .2s ease;
+  }
+  .card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.06); }
+  .card.error { border-color:rgba(224,46,42,0.6); }
+  .card.done { opacity:.92; }
+  @keyframes cardIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+  .card-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
+  .card-top .who { display:flex; align-items:center; gap:6px; min-width:0; }
+  .card-top .who .grp { font-size:11px; color:var(--muted-fg); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .card-actions { display:flex; align-items:center; gap:2px; flex-shrink:0; }
+  .icon-btn {
+    padding:4px; border-radius:6px; color:rgba(142,142,142,0.5);
+    display:flex; align-items:center; justify-content:center; transition:.15s;
+  }
+  .icon-btn svg { width:13px; height:13px; }
+  .icon-btn.ok:hover { color:var(--success); background:rgba(0,162,64,0.1); }
+  .icon-btn.no:hover { color:var(--destructive); background:rgba(224,46,42,0.1); }
+  .icon-btn.mut:hover { color:var(--foreground); background:var(--accent); }
+  .card-title { font-size:13px; font-weight:500; line-height:1.35; margin:0; }
+  .card-desc { font-size:12px; color:var(--muted-fg); line-height:1.4; margin:4px 0 0;
+    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .card-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:10px; }
+  .tag {
+    height:18px; display:inline-flex; align-items:center; padding:0 8px;
+    border-radius:9999px; background:var(--secondary);
+    font-size:10px; font-weight:500; color:var(--muted-fg);
+  }
+  .tag.dir-outbound { background:rgba(224,172,0,0.14); color:#8a6d00; }
+  .tag.dir-inbound { background:rgba(0,162,64,0.12); color:#00813a; }
+  .col-add {
+    height:40px; width:100%; display:flex; align-items:center; justify-content:center;
+    border-radius:14px; border:1px solid var(--border); background:rgba(255,255,255,0.8);
+    color:rgba(142,142,142,0.8); transition:.15s;
+  }
+  .col-add:hover { border-color:rgba(0,0,0,0.12); background:#fff; color:var(--foreground); }
+  .col-add svg { width:16px; height:16px; }
+  .empty-hint { text-align:center; font-size:12px; color:var(--muted-fg); padding:16px 8px; }
+
+  /* gate buttons inside a card */
+  .gate-row { display:flex; gap:6px; margin-top:10px; }
+  .gate-btn { flex:1; border-radius:9999px; padding:6px 10px; font-size:12px; font-weight:500; transition:.12s; }
+  .gate-approve { background:var(--success); color:var(--success-fg); }
+  .gate-approve:hover { opacity:.9; }
+  .gate-reject { background:var(--secondary); color:var(--foreground); border:1px solid var(--border); }
+  .gate-reject:hover { background:var(--accent); }
+  .gate-btn:disabled { opacity:.5; cursor:default; }
+
+  /* toast */
+  .toasts { position:fixed; bottom:18px; right:18px; display:flex; flex-direction:column; gap:8px; z-index:50; }
+  .toast {
+    background:var(--card); border:1px solid var(--border); border-radius:10px;
+    box-shadow:0 6px 24px rgba(0,0,0,0.10); padding:10px 14px; font-size:13px; max-width:340px;
+    display:flex; gap:8px; align-items:flex-start; animation:cardIn .18s ease;
+  }
+  .toast.err { border-color:rgba(224,46,42,0.4); }
+  .toast .tdot { width:8px; height:8px; border-radius:9999px; margin-top:5px; flex-shrink:0; }
+  .toast.ok .tdot { background:var(--success); }
+  .toast.err .tdot { background:var(--destructive); }
+  .toast.info .tdot { background:var(--warning); }
 </style>
 </head>
 <body>
-<aside class="sidebar">
-  <div class="brand"><span class="logo">H</span> Houston</div>
-  <div class="section">Workspace</div>
-  <div class="nav-item">Tax Practice</div>
-  <div class="nav-item active">CAPCOM</div>
-  <div class="nav-item">Bookkeeper</div>
-  <div class="section">How it works</div>
-  <div class="nav-item" style="font-size:12px;color:var(--muted-fg);cursor:default;">Two agents, two tenants</div>
-  <div class="nav-item" style="font-size:12px;color:var(--muted-fg);cursor:default;">Relay mediates</div>
-  <div class="nav-item" style="font-size:12px;color:var(--muted-fg);cursor:default;">Each human approves</div>
-</aside>
-
-<div class="main">
-  <div class="topbar">
-    <h1>CAPCOM</h1>
-    <span class="desc">When one agent talks to another person's agent — both humans decide</span>
-    <span class="live" id="live">live</span>
-  </div>
-
-  <div class="composer">
-    <input id="nl" type="text" placeholder="Tell your agent what to do — e.g. &quot;hand the Acme account to a Support agent for $5k/mo&quot;" onkeydown="if(event.key==='Enter')composeAndRun()" />
-    <button class="send" onclick="composeAndRun()">Ask agent</button>
-  </div>
-  <div class="toolbar">
-    <span class="presets-lbl">or try:</span>
-    <button class="mission-btn" onclick="run('handoff')"><span class="ix" style="background:rgba(216,90,48,0.25);color:#F0997B">1</span> Sales → Support: hand off</button>
-    <button class="mission-btn" onclick="run('review')"><span class="ix" style="background:rgba(127,119,221,0.3);color:#AFA9EC">2</span> Sales → Legal: review</button>
-    <button class="mission-btn" onclick="run('skill')"><span class="ix" style="background:rgba(186,117,23,0.3);color:#FAC775">3</span> Marketing → Sales: skill</button>
-  </div>
-
-  <div class="stage" id="stage">
-    <div class="wire" style="left:30%;width:40%;"></div>
-    <div class="envelope" id="env">✉️</div>
-
-    <div class="agent a" id="agA">
-      <div class="avatar">🤖</div>
-      <div class="nm" id="nmA">Sales</div>
-      <div class="rl" id="rlA">prospecting → CRM</div>
-      <div class="tn">tenant A</div>
-      <div class="bubbles" id="bubA"></div>
+<div class="app">
+  <!-- ── Sidebar ──────────────────────────────────────────────────── -->
+  <aside class="sidebar">
+    <div class="ws-switcher">
+      <div class="ws-left">
+        <div class="ws-logo">P</div>
+        <span class="ws-name">Personal</span>
+      </div>
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
     </div>
 
-    <div class="relay">
-      <div class="hub">📡</div>
-      <div class="lab">relay</div>
-      <div class="sub">CAPCOM<br>Cloudflare</div>
+    <nav class="nav">
+      <button class="nav-item active">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+        Centro de misiones
+      </button>
+      <button class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6M15 2v6M7 8h10v3a5 5 0 0 1-10 0V8zM12 16v6"/></svg>
+        Integraciones
+      </button>
+      <button class="nav-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        Configuración
+      </button>
+    </nav>
+
+    <div class="section-label">Tus agentes</div>
+    <div class="agents" id="agents"></div>
+
+    <div style="padding:0 8px 8px;">
+      <button class="add-agent">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Nuevo agente
+      </button>
     </div>
 
-    <div class="agent b" id="agB">
-      <div class="avatar">🤖</div>
-      <div class="nm" id="nmB">Support</div>
-      <div class="rl" id="rlB">tickets → success</div>
-      <div class="tn">tenant B</div>
-      <div class="bubbles" id="bubB"></div>
+    <div class="sidebar-footer">
+      <div class="avatar" style="background:#e02e2a;">PA</div>
+      <span style="font-size:13.5px;">Plogy Apps</span>
     </div>
-  </div>
+  </aside>
 
-  <div class="status-row">
-    <div class="pill" id="pillA"><span class="dot">·</span> <span id="txtA">A's human: idle</span></div>
-    <div class="pill" id="pillB"><span class="dot">·</span> <span id="txtB">B's human: idle</span></div>
-  </div>
+  <!-- ── Main ─────────────────────────────────────────────────────── -->
+  <main class="main">
+    <div class="topbar">
+      <div class="topbar-row">
+        <h1 class="page-title">Centro de misiones</h1>
+        <div class="search">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input placeholder="Buscar misiones" />
+        </div>
+        <div class="select-pill">
+          Todos los agentes
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <button class="btn-primary"><span class="dot"></span> Nueva misión</button>
+      </div>
+      <div class="tabs">
+        <button class="tab active">Actividad</button>
+        <button class="tab">Rutinas</button>
+        <button class="tab">Archivos</button>
+        <button class="tab">Descripción del rol</button>
+        <button class="tab">Integraciones</button>
+      </div>
+    </div>
 
-  <div class="log" id="log"></div>
+    <!-- CAPCOM compose -->
+    <div class="compose">
+      <div class="compose-head">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4z"/></svg>
+        <span class="t">CAPCOM · proponer a otro agente</span>
+        <span class="relay"><span class="relay-dot"></span> relay activo · capcom-relay.pipe-ceballos17.workers.dev</span>
+      </div>
+      <div class="compose-row">
+        <textarea id="instruction" placeholder="Ej: pasale la cuenta de Acme a un agente de Soporte por USD 5000/mes"></textarea>
+        <div class="compose-actions">
+          <button class="btn-primary" id="composeBtn" style="white-space:nowrap;">Componer y proponer</button>
+          <span class="src-badge" id="srcBadge"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Kanban -->
+    <div class="board">
+      <div class="col">
+        <div class="col-head"><h3>En curso</h3><span class="col-count" id="cnt-progress"></span></div>
+        <div class="col-body" id="col-progress"></div>
+      </div>
+      <div class="col">
+        <div class="col-head"><h3>Necesita tu atención</h3><span class="col-count" id="cnt-attention"></span></div>
+        <div class="col-body" id="col-attention"></div>
+      </div>
+      <div class="col">
+        <div class="col-head"><h3>Listo</h3><span class="col-count" id="cnt-done"></span></div>
+        <div class="col-body" id="col-done"></div>
+      </div>
+    </div>
+  </main>
 </div>
 
-<script>
-const $ = (id)=>document.getElementById(id);
-const SCENES = {
-  handoff:{ a:{id:"agent-a",nm:"Sales",rl:"prospecting → CRM"}, b:{id:"agent-b",nm:"Support",rl:"tickets → success"},
-    intent:"lead_handoff", subj:"New customer: Acme Corp",
-    terms:{account:"Acme Corp",plan:"Enterprise",mrr:5000},
-    aMsg:"Just closed Acme. Handing the account to your Support agent for onboarding.",
-    bMsg:"Accept Acme for onboarding?" },
-  review:{ a:{id:"agent-a",nm:"Sales",rl:"prospecting → CRM"}, b:{id:"agent-b",nm:"Legal",rl:"contracts → compliance"},
-    intent:"data_share", subj:"Contract review: Acme MSA",
-    terms:{doc:"Acme-MSA-v3.pdf",redlines:7,deadline:"Jun 12"},
-    aMsg:"Acme pushed back on liability terms. Can your Legal agent review the redlines?",
-    bMsg:"Take on this contract review?" },
-  skill:{ a:{id:"agent-a",nm:"Marketing",rl:"campaigns → SEO"}, b:{id:"agent-b",nm:"Sales",rl:"prospecting → CRM"},
-    intent:"other", subj:"Share skill: seo-outreach-sequences",
-    terms:{skill:"seo-outreach-sequences",version:3},
-    aMsg:"My outreach skill outperformed last campaign. Lending it to your Sales agent.",
-    bMsg:"Install this skill?" },
-};
-let current=null;
+<div class="toasts" id="toasts"></div>
 
-// Compose via the engine (claude -p) then run the animation with the result.
-async function composeAndRun(){
-  const nl=$('nl'); const instruction=nl.value.trim();
-  if(!instruction) return;
-  const btn=document.querySelector('.composer .send');
-  btn.disabled=true; btn.textContent='Agent thinking…';
-  log(`You → your agent: "${instruction}"`);
-  // Heuristic for which peer to address based on the text (demo affordance).
-  const lower=instruction.toLowerCase();
-  let bName="Support", bRole="tickets → success";
-  if(lower.includes("legal")||lower.includes("contract")||lower.includes("review")){bName="Legal";bRole="contracts → compliance";}
-  else if(lower.includes("skill")||lower.includes("marketing")){bName="Sales";bRole="prospecting → CRM";}
-  try{
-    const r=await fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({side:'a',op:'compose',payload:{instruction,toPeerId:'agent-b',fromAgent:'agent-a',toAgent:'agent-b'}})});
-    const data=await r.json();
-    const p=data.proposal; const source=data.source||'fallback';
-    const scene={ a:{id:'agent-a',nm:'Your agent',rl:'composing'}, b:{id:'agent-b',nm:bName,rl:bRole},
-      intent:p.intent, subj:p.subject, terms:p.terms||{}, aMsg:p.message, bMsg:`Accept this ${({lead_handoff:'handoff',data_share:'request',meeting:'intro',other:'exchange'})[p.intent]||'proposal'}?`,
-      proposalId:p.proposalId, source };
-    nl.value='';
-    runScene(scene);
-  }catch(e){
-    log('compose failed — using preset',false);
-    run('handoff');
-  }finally{
-    btn.disabled=false; btn.textContent='Ask agent';
+<script>
+/* ──────────────────────────────────────────────────────────────────────
+   CAPCOM wiring. Reuses the EXISTING proxy — no relay/token logic here.
+     POST {API_BASE}/api/action  { side:"a"|"b", op, payload }
+     GET  {API_BASE}/api/pending -> { a:{items:[...]}, b:{items:[...]} }
+   payload shapes match the engine DTOs (camelCase):
+     compose  -> { instruction, toPeerId, fromAgent, toAgent } -> { proposal, source }
+     propose  -> { toPeerId, proposal }
+     approve  -> { proposalId, approved, reason? }
+   pending item (PendingProposal): { proposal, peer, direction, replyToPeerId }
+   ────────────────────────────────────────────────────────────────────── */
+const API_BASE = ""; // same-origin (Vercel). Set to the proxy URL if hosted elsewhere.
+const AGENT_A = "agent-a", AGENT_B = "agent-b";
+
+/* Sidebar agents (cosmetic, from the brief) */
+const AGENTS = [
+  { name:"test", badge:2, color:"#0d0d0d" },
+  { name:"Plogy social listening", badge:5, color:"#2563eb" },
+  { name:"Larry SDR", badge:1, color:"#e0ac00" },
+  { name:"Asistente personal", badge:3, color:"#00a240" },
+];
+
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
+const initials = (s) => (s||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase();
+const INTENT_LABEL = { lead_handoff:"traspaso de lead", data_share:"compartir datos", meeting:"reunión", other:"otro" };
+
+/* client-side lifecycle tracking so we can show a "Listo" column */
+const seen = new Map();   // proposalId -> {title, desc, intent}
+const resolved = new Map(); // proposalId -> {title, desc, intent, outcome}
+const justComposed = new Map(); // proposalId -> {title, desc, intent} (pre-pending, transient)
+
+function renderAgents() {
+  $("agents").innerHTML = AGENTS.map((a,i)=>`
+    <button class="agent-row${i===0?' active':''}">
+      <span class="avatar" style="background:${a.color}">${esc(initials(a.name))}</span>
+      <span class="name">${esc(a.name)}</span>
+      <span class="badge-num">${a.badge}</span>
+    </button>`).join("");
+}
+
+function toast(msg, kind="ok") {
+  const el = document.createElement("div");
+  el.className = "toast " + kind;
+  el.innerHTML = `<span class="tdot"></span><span>${esc(msg)}</span>`;
+  $("toasts").appendChild(el);
+  setTimeout(()=>{ el.style.opacity="0"; el.style.transition="opacity .3s"; setTimeout(()=>el.remove(),300); }, 4200);
+}
+
+async function api(path, opts) {
+  const res = await fetch(API_BASE + path, opts);
+  if (!res.ok) {
+    let detail = "";
+    try { detail = (await res.json())?.error?.message || ""; } catch {}
+    throw new Error(`${res.status} ${detail}`.trim());
+  }
+  return res.json();
+}
+const action = (side, op, payload) =>
+  api("/api/action", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ side, op, payload }) });
+
+/* ── Compose + propose (side A) ──────────────────────────────────────── */
+async function composeAndPropose() {
+  const instruction = $("instruction").value.trim();
+  if (!instruction) { toast("Escribí una instrucción primero.", "info"); return; }
+  const btn = $("composeBtn"); btn.disabled = true; btn.textContent = "Componiendo…";
+  $("srcBadge").style.display = "none";
+  try {
+    const { proposal, source } = await action("a", "compose", {
+      instruction, toPeerId: AGENT_B, fromAgent: AGENT_A, toAgent: AGENT_B,
+    });
+    const badge = $("srcBadge");
+    badge.className = "src-badge " + (source === "claude" ? "claude" : "fallback");
+    badge.textContent = source === "claude" ? "compuesto por Claude" : "parseado localmente";
+
+    justComposed.set(proposal.proposalId, {
+      title: proposal.subject, desc: proposal.message, intent: proposal.intent,
+    });
+    render();
+
+    await action("a", "propose", { toPeerId: AGENT_B, proposal });
+    toast(`Propuesta enviada: "${proposal.subject}". Aprobá el gate de salida de A.`, "ok");
+    $("instruction").value = "";
+    refresh();
+  } catch (e) {
+    toast("Error al componer/proponer: " + e.message, "err");
+  } finally {
+    btn.disabled = false; btn.textContent = "Componer y proponer";
   }
 }
 
-function log(msg,ok){const e=document.createElement('div');e.className='e'+(ok?' ok':'');e.innerHTML=`<time>${new Date().toLocaleTimeString()}</time><span>${msg}</span>`;$('log').prepend(e);}
-function setScene(s){
-  $('nmA').textContent=s.a.nm; $('rlA').textContent=s.a.rl;
-  $('nmB').textContent=s.b.nm; $('rlB').textContent=s.b.rl;
-  $('bubA').innerHTML=''; $('bubB').innerHTML='';
-  $('pillA').className='pill'; $('txtA').textContent="A's human: idle"; $('pillA').querySelector('.dot').textContent='·';
-  $('pillB').className='pill'; $('txtB').textContent="B's human: idle"; $('pillB').querySelector('.dot').textContent='·';
+/* ── Approve / reject a gate (real relay call) ───────────────────────── */
+async function verdict(side, proposalId, approved, cardEl) {
+  cardEl.querySelectorAll(".gate-btn").forEach(b => b.disabled = true);
+  try {
+    await action(side, "approve", { proposalId, approved, reason: approved ? undefined : "rechazado por el humano" });
+    const meta = seen.get(proposalId) || justComposed.get(proposalId) || {};
+    if (!approved) resolved.set(proposalId, { ...meta, outcome:"rechazado" });
+    else if (side === "b") resolved.set(proposalId, { ...meta, outcome:"listo" });
+    toast(approved
+      ? (side === "a" ? "Gate de salida aprobado. Va al relay → gate de entrada de B." : "Gate de entrada aprobado. Trato cerrado (READY).")
+      : "Propuesta rechazada. Se notificó al par.", approved ? "ok" : "info");
+    refresh();
+  } catch (e) {
+    toast("Error en el verdicto: " + e.message, "err");
+    cardEl.querySelectorAll(".gate-btn").forEach(b => b.disabled = false);
+  }
 }
-function flyEnv(dir){const e=$('env');e.className='envelope';void e.offsetWidth;e.className='envelope '+(dir==='right'?'fly-right':'fly-left');}
 
-// Preset path: look up a canned scene, give it a fresh id, run the machine.
-function run(key){
-  const base=SCENES[key];
-  const s=Object.assign({}, base, { proposalId:crypto.randomUUID(), source:'preset' });
-  runScene(s);
+/* ── Render ──────────────────────────────────────────────────────────── */
+function gateCard(item, side) {
+  const p = item.proposal || {};
+  const peer = item.peer || {};
+  const dir = item.direction || "";
+  const dirLabel = dir === "outbound" ? "A · saliente" : "B · entrante";
+  const who = side === "a" ? "Agente A" : "Agente B";
+  const intent = INTENT_LABEL[p.intent] || p.intent || "";
+  return `
+    <div class="card" data-pid="${esc(p.proposalId)}">
+      <div class="card-top">
+        <div class="who">
+          <span class="avatar" style="width:18px;height:18px;font-size:9px;background:${side==='a'?'#0d0d0d':'#2563eb'}">${esc(initials(peer.name||who))}</span>
+          <span class="grp">${esc(who)} · ${esc(peer.name||"par")}</span>
+        </div>
+        <div class="card-actions">
+          <span class="tag dir-${esc(dir)}">${esc(dirLabel)}</span>
+        </div>
+      </div>
+      <p class="card-title">${esc(p.subject||"(sin asunto)")}</p>
+      ${p.message ? `<p class="card-desc">${esc(p.message)}</p>` : ""}
+      <div class="card-tags">${intent ? `<span class="tag">${esc(intent)}</span>` : ""}</div>
+      <div class="gate-row">
+        <button class="gate-btn gate-approve">Aprobar</button>
+        <button class="gate-btn gate-reject">Rechazar</button>
+      </div>
+    </div>`;
 }
-// Unified runner — works for presets and for composed proposals.
-function runScene(s){
-  if(!s.proposalId) s.proposalId=crypto.randomUUID();
-  current=s; setScene(s);
-  $('agA').classList.add('active');
-  const srcBadge = s.source==='claude' ? '<span class="src-badge claude">composed by Claude</span>'
-                 : s.source==='fallback' ? '<span class="src-badge fallback">parsed locally</span>' : '';
-  log(`${s.a.nm} drafts a proposal for ${s.b.nm}`);
-  $('bubA').innerHTML=`<div class="bubble">${s.aMsg}${srcBadge}</div>`;
-  setTimeout(()=>{
-    $('pillA').className='pill wait'; $('pillA').querySelector('.dot').textContent='?'; $('txtA').textContent="A's human: approve to send?";
-    $('bubA').innerHTML+=`<div class="bubble gate"><div class="lbl">outbound gate</div><div class="subj">${s.subj}</div><div class="acts"><button class="ok" onclick="approveA()">Approve & send</button><button class="no" onclick="reset()">Hold</button></div></div>`;
-  },500);
-}
-async function approveA(){
-  const s=current; if(!s) return;
-  $('pillA').className='pill done'; $('pillA').querySelector('.dot').textContent='✓'; $('txtA').textContent="A's human: approved";
-  $('bubA').querySelector('.bubble.gate').outerHTML=`<div class="bubble">Sent ✓</div>`;
-  $('agA').classList.remove('active');
-  log(`${s.a.nm}'s human approved → frame travels through relay`,true);
-  const proposalId=s.proposalId;
-  fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({side:'a',op:'propose',payload:{toPeerId:'agent-b',proposal:{proposalId,fromAgent:s.a.id,toAgent:s.b.id,intent:s.intent,subject:s.subj,terms:s.terms,message:s.aMsg,requiresApproval:true}}})})
-    .then(()=>fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({side:'a',op:'approve',payload:{proposalId,approved:true}})}));
-  flyEnv('right');
-  setTimeout(()=>{
-    $('agB').classList.add('active');
-    $('bubB').innerHTML=`<div class="bubble">${s.bMsg}</div>`;
-    $('pillB').className='pill wait'; $('pillB').querySelector('.dot').textContent='?'; $('txtB').textContent="B's human: accept?";
-    $('bubB').innerHTML+=`<div class="bubble gate"><div class="lbl">inbound gate</div><div class="subj">${s.subj}</div><div class="terms">${Object.entries(s.terms).map(([k,v])=>`<span class="term">${k} <b>${v}</b></span>`).join('')}</div><div class="acts"><button class="ok" onclick="approveB()">Approve</button><button class="no" onclick="reset()">Reject</button></div></div>`;
-    log(`${s.b.nm} received the proposal via relay`,true);
-  },1300);
-}
-function approveB(){
-  const s=current; if(!s) return;
-  $('pillB').className='pill done'; $('pillB').querySelector('.dot').textContent='✓'; $('txtB').textContent="B's human: approved";
-  $('bubB').querySelector('.bubble.gate').outerHTML=`<div class="bubble">Accepted ✓ — deal done</div>`;
-  $('agB').classList.remove('active');
-  log(`${s.b.nm}'s human approved → deal READY. Both sides consented.`,true);
-}
-function reset(){ if(current) setScene(current); log('Interaction held / reset'); }
 
-// keep the relay live indicator honest
-async function ping(){ try{const r=await fetch('/api/pending'); await r.json(); $('live').textContent='live';}catch{$('live').textContent='offline';} }
-ping(); setInterval(ping,4000);
+function simpleCard(meta, opts={}) {
+  const intent = INTENT_LABEL[meta.intent] || meta.intent || "";
+  return `
+    <div class="card ${opts.done?'done':''}">
+      <div class="card-top">
+        <div class="who"><span class="grp">${esc(opts.group||"CAPCOM")}</span></div>
+        <div class="card-actions">${opts.outcome ? `<span class="tag dir-${opts.outcome==='listo'?'inbound':'outbound'}">${esc(opts.outcome)}</span>`:""}</div>
+      </div>
+      <p class="card-title">${esc(meta.title||"(sin asunto)")}</p>
+      ${meta.desc ? `<p class="card-desc">${esc(meta.desc)}</p>`:""}
+      <div class="card-tags">${intent ? `<span class="tag">${esc(intent)}</span>`:""}</div>
+    </div>`;
+}
+
+function render(pending) {
+  const a = pending?.a?.items || [];
+  const b = pending?.b?.items || [];
+  const pendingIds = new Set([...a, ...b].map(it => it.proposal?.proposalId));
+
+  // "En curso": just-composed proposals not yet visible in pending.
+  const progress = [...justComposed.entries()].filter(([id]) => !pendingIds.has(id) && !resolved.has(id));
+  $("col-progress").innerHTML =
+    progress.map(([,m]) => simpleCard(m, { group:"Compuesta, enviando…" })).join("")
+    + `<button class="col-add" title="Nueva">
+         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+       </button>`;
+  $("cnt-progress").textContent = progress.length || "";
+
+  // "Necesita tu atención": every live gate (A outbound + B inbound).
+  const attHtml = a.map(it => gateCard(it, "a")).join("") + b.map(it => gateCard(it, "b")).join("");
+  $("col-attention").innerHTML = attHtml || `<div class="empty-hint">Sin gates pendientes.<br>Componé una propuesta arriba.</div>`;
+  $("cnt-attention").textContent = (a.length + b.length) || "";
+
+  // "Listo": resolved (locally tracked).
+  const done = [...resolved.entries()];
+  $("col-done").innerHTML = done.length
+    ? done.map(([,m]) => simpleCard(m, { done:true, outcome:m.outcome, group: m.outcome==='listo'?'Trato cerrado':'Rechazado' })).join("")
+    : `<div class="empty-hint">Todavía nada.</div>`;
+  $("cnt-done").textContent = done.length || "";
+
+  // wire gate buttons
+  document.querySelectorAll("#col-attention .card").forEach(cardEl => {
+    const pid = cardEl.getAttribute("data-pid");
+    const inA = a.some(it => it.proposal?.proposalId === pid);
+    const side = inA ? "a" : "b";
+    cardEl.querySelector(".gate-approve")?.addEventListener("click", () => verdict(side, pid, true, cardEl));
+    cardEl.querySelector(".gate-reject")?.addEventListener("click", () => verdict(side, pid, false, cardEl));
+  });
+}
+
+let lastPendingIds = new Set();
+async function refresh() {
+  try {
+    const pending = await api("/api/pending");
+    const a = pending?.a?.items || [], b = pending?.b?.items || [];
+    const ids = new Set();
+    for (const it of [...a, ...b]) {
+      const p = it.proposal || {}; const id = p.proposalId;
+      ids.add(id);
+      seen.set(id, { title:p.subject, desc:p.message, intent:p.intent });
+      justComposed.delete(id);
+    }
+    // anything previously pending that vanished AND wasn't recorded as a local
+    // verdict → the peer resolved it; mark generically as resolved.
+    for (const id of lastPendingIds) {
+      if (!ids.has(id) && !resolved.has(id)) {
+        resolved.set(id, { ...(seen.get(id)||{}), outcome:"resuelto" });
+      }
+    }
+    lastPendingIds = ids;
+    render(pending);
+  } catch (e) {
+    render({ a:{items:[]}, b:{items:[]} });
+    // surface once; polling keeps retrying quietly
+    if (!refresh._warned) { toast("No pude leer /api/pending: " + e.message, "err"); refresh._warned = true; }
+  }
+}
+
+renderAgents();
+render();
+$("composeBtn").addEventListener("click", composeAndPropose);
+$("instruction").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey||e.ctrlKey)) composeAndPropose(); });
+refresh();
+setInterval(refresh, 2000);
 </script>
 </body>
 </html>
