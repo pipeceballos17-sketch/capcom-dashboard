@@ -8,6 +8,7 @@ const OP_PATH = {
   propose: "/v1/capcom/propose",
   approve: "/v1/capcom/approve",
   register: "/v1/capcom/peers",
+  compose: "/v1/capcom/compose",
 };
 
 export default async function handler(req) {
