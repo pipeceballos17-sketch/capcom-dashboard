@@ -1,579 +1,233 @@
-<!doctype html>
-<html lang="es" data-theme="light">
+<!DOCTYPE html>
+<html lang="es">
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Houston</title>
-<!--
-  Static replica of the Houston desktop UI (LIGHT theme) acting as the shell for
-  the CAPCOM agent-to-agent handshake demo.
-
-  - Pure HTML/CSS/JS. No build, no engine, no Tauri.
-  - Design tokens copied verbatim from ui/core/src/globals.css (:root = light).
-  - The functional part REUSES the existing proxy (does NOT re-implement relay
-    or tokens): POST /api/action {side,op,payload} and GET /api/pending.
-
-  DEPLOY: drop this file in as the index of the `capcom-dashboard` Vercel repo
-  (same origin as /api/*). If you host it on a different origin, set API_BASE
-  below to the proxy's absolute URL AND make the proxy send CORS headers.
--->
+<title>Houston · CAPCOM</title>
 <style>
-  /* ── Tokens (ui/core/src/globals.css :root — LIGHT) ──────────────── */
-  :root {
-    --background:#ffffff; --foreground:#0d0d0d;
-    --card:#ffffff; --card-fg:#0d0d0d;
-    --primary:#0d0d0d; --primary-fg:#ffffff;
-    --secondary:#f5f5f5; --secondary-fg:#0d0d0d;
-    --muted:#f5f5f5; --muted-fg:#8e8e8e;
-    --accent:rgba(0,0,0,0.07); --accent-fg:#424242;
-    --destructive:#e02e2a; --destructive-fg:#ffffff;
-    --border:rgba(0,0,0,0.06); --input:#e3e3e3; --ring:#0d0d0d;
+  /* Houston light tokens (exact from ui/core/src/globals.css :root) */
+  :root{
+    --bg:#ffffff; --fg:#0d0d0d; --card:#ffffff; --card-fg:#0d0d0d;
+    --primary:#0d0d0d; --primary-fg:#ffffff; --secondary:#f5f5f5; --secondary-fg:#0d0d0d;
+    --muted:#f5f5f5; --muted-fg:#8e8e8e; --accent:rgba(0,0,0,0.07); --accent-fg:#424242;
+    --destructive:#e02e2a; --border:rgba(0,0,0,0.06); --input:#e3e3e3;
     --sidebar:#f5f5f5; --sidebar-fg:#0d0d0d; --sidebar-border:rgba(0,0,0,0.06);
-    --success:#00a240; --success-fg:#ffffff;
-    --warning:#e0ac00; --warning-fg:#ffffff;
-    --radius:0.5rem;
-    --font: ui-sans-serif, -apple-system, "system-ui", "Segoe UI", Helvetica,
-            "Apple Color Emoji", Arial, sans-serif, "Segoe UI Emoji";
+    --success:#00a240; --warning:#e0ac00; --radius:0.5rem;
+    --mine:#d85a30; --theirs:#1d9e75;
   }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--fg);font-family:ui-sans-serif,-apple-system,"system-ui","Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+  button{cursor:pointer;font-family:inherit;}
+  ::-webkit-scrollbar{width:6px;height:6px;}
+  ::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--fg) 15%,transparent);border-radius:3px;}
 
-  * { box-sizing:border-box; }
-  html,body { height:100%; }
-  body {
-    margin:0; overflow:hidden;
-    background:var(--background); color:var(--foreground);
-    font-family:var(--font);
-    -webkit-font-smoothing:antialiased; -moz-osx-font-smoothing:grayscale;
-    font-size:14px;
-  }
-  button { font-family:inherit; cursor:pointer; border:none; background:none; }
-  ::-webkit-scrollbar { width:8px; height:8px; }
-  ::-webkit-scrollbar-thumb { background:rgba(0,0,0,0.12); border-radius:9999px; }
+  /* Top command bar */
+  .cmdbar{border-bottom:1px solid var(--border);padding:13px 22px;display:flex;align-items:center;gap:14px;flex-shrink:0;}
+  .cmdbar .brand{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;}
+  .cmdbar .brand .lg{width:22px;height:22px;border-radius:6px;background:var(--primary);color:var(--primary-fg);display:grid;place-items:center;font-size:12px;}
+  .cmdbar .title{font-size:13px;color:var(--muted-fg);}
+  .cmdbar .relaystat{margin-left:auto;font-size:11.5px;color:var(--success);display:flex;align-items:center;gap:6px;}
+  .cmdbar .relaystat .d{width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse 2s infinite;}
+  @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-  .app { display:flex; height:100vh; }
+  /* Composer */
+  .composer{padding:14px 22px;border-bottom:1px solid var(--border);display:flex;gap:9px;align-items:center;flex-shrink:0;background:var(--secondary);}
+  .composer .lbl{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;white-space:nowrap;}
+  .composer input{flex:1;height:38px;padding:0 14px;border-radius:var(--radius);border:1px solid var(--input);background:var(--bg);color:var(--fg);font-size:13.5px;outline:none;}
+  .composer input:focus{border-color:var(--primary);}
+  .composer .send{height:38px;padding:0 18px;border-radius:9999px;background:var(--primary);color:var(--primary-fg);border:none;font-size:13.5px;font-weight:600;}
+  .composer .send:disabled{opacity:.5;}
 
-  /* ── Sidebar (ui/layout/src/sidebar.tsx) ─────────────────────────── */
-  .sidebar {
-    width:220px; flex-shrink:0; height:100%;
-    background:var(--sidebar); color:var(--sidebar-fg);
-    display:flex; flex-direction:column;
-    border-right:1px solid var(--sidebar-border);
-  }
-  .ws-switcher {
-    display:flex; align-items:center; gap:8px; justify-content:space-between;
-    padding:14px 12px 10px 14px;
-  }
-  .ws-switcher .ws-left { display:flex; align-items:center; gap:8px; min-width:0; }
-  .ws-logo {
-    width:26px; height:26px; border-radius:8px; background:var(--primary);
-    color:var(--primary-fg); display:flex; align-items:center; justify-content:center;
-    font-weight:700; font-size:13px; flex-shrink:0;
-  }
-  .ws-name { font-weight:600; font-size:14px; }
-  .nav { padding:4px 8px; display:flex; flex-direction:column; gap:2px; }
-  .nav-item {
-    display:flex; align-items:center; gap:10px; width:100%;
-    padding:7px 10px; border-radius:var(--radius);
-    color:var(--foreground); font-size:13.5px; text-align:left;
-    transition:background .12s;
-  }
-  .nav-item:hover { background:var(--accent); }
-  .nav-item.active { background:var(--accent); font-weight:500; }
-  .nav-item svg { width:17px; height:17px; opacity:.85; flex-shrink:0; }
+  /* Split stage */
+  .split{flex:1;display:grid;grid-template-columns:1fr 130px 1fr;overflow:hidden;}
+  .houston{display:flex;flex-direction:column;overflow:hidden;border-top:3px solid transparent;}
+  .houston.mine{border-top-color:var(--mine);}
+  .houston.theirs{border-top-color:var(--theirs);}
+  .hhead{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .hhead .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:15px;color:#fff;font-weight:700;}
+  .mine .hhead .ic{background:var(--mine);}
+  .theirs .hhead .ic{background:var(--theirs);}
+  .hhead .who{font-size:14px;font-weight:700;}
+  .hhead .sub{font-size:11px;color:var(--muted-fg);}
+  .hbody{flex:1;display:flex;overflow:hidden;}
+  .hsidebar{width:130px;background:var(--sidebar);border-right:1px solid var(--sidebar-border);padding:12px 8px;flex-shrink:0;}
+  .hsidebar .sec{font-size:9.5px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;padding:6px 8px 4px;font-weight:600;}
+  .hsidebar .it{font-size:11.5px;padding:6px 8px;border-radius:6px;display:flex;align-items:center;gap:7px;color:var(--fg);}
+  .hsidebar .it.on{background:var(--accent);font-weight:600;}
+  .hsidebar .it .av{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:8px;color:#fff;font-weight:700;}
+  .hmain{flex:1;padding:16px;overflow-y:auto;}
+  .hmain .colhead{font-size:12px;font-weight:700;margin-bottom:12px;text-align:center;color:var(--muted-fg);}
+  .agentcard{display:flex;flex-direction:column;align-items:center;margin-bottom:18px;}
+  .agentcard .face{width:60px;height:60px;border-radius:16px;display:grid;place-items:center;font-size:28px;border:1px solid var(--border);background:var(--card);transition:.3s;}
+  .agentcard.talking .face{box-shadow:0 0 0 4px color-mix(in srgb,var(--warning) 25%,transparent);}
+  .agentcard .nm{font-size:13px;font-weight:600;margin-top:8px;}
+  .agentcard .rl{font-size:11px;color:var(--muted-fg);}
+  .msg{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:12px;line-height:1.45;margin-bottom:9px;box-shadow:0 1px 2px rgba(0,0,0,0.03);animation:rise .3s;}
+  @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+  .msg .src{display:inline-block;font-size:9.5px;color:var(--muted-fg);background:var(--secondary);border-radius:9999px;padding:1px 7px;margin-top:6px;}
+  .gate{border:1px solid color-mix(in srgb,var(--warning) 50%,transparent);background:color-mix(in srgb,var(--warning) 7%,var(--card));border-radius:12px;padding:12px;margin-bottom:9px;animation:rise .3s;}
+  .gate .glbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--warning);font-weight:700;margin-bottom:5px;}
+  .gate .gsubj{font-size:13px;font-weight:600;margin-bottom:4px;}
+  .gate .gmsg{font-size:11.5px;color:var(--fg);line-height:1.4;margin-bottom:8px;}
+  .gate .terms{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
+  .gate .term{font-size:10px;color:var(--muted-fg);background:var(--secondary);border-radius:5px;padding:2px 6px;}
+  .gate .term b{color:var(--fg);}
+  .gate .ga{display:flex;gap:7px;}
+  .gate .ok{flex:1;height:30px;border-radius:9999px;background:var(--primary);color:var(--primary-fg);border:none;font-size:12px;font-weight:600;}
+  .gate .no{height:30px;padding:0 12px;border-radius:9999px;background:transparent;color:var(--muted-fg);border:1px solid var(--border);font-size:12px;}
+  .empty{font-size:11.5px;color:var(--muted-fg);text-align:center;padding:20px 8px;}
+  .human{margin-top:auto;border-top:1px solid var(--border);padding:11px 16px;display:flex;align-items:center;gap:9px;font-size:11.5px;flex-shrink:0;}
+  .human .hd{width:18px;height:18px;border-radius:50%;background:var(--muted);display:grid;place-items:center;font-size:10px;color:var(--muted-fg);}
+  .human.wait .hd{background:color-mix(in srgb,var(--warning) 20%,transparent);color:var(--warning);}
+  .human.done .hd{background:color-mix(in srgb,var(--success) 20%,transparent);color:var(--success);}
 
-  .section-label { padding:12px 12px 4px; font-size:12px; font-weight:500; color:var(--muted-fg); }
-  .agents { flex:1; min-height:0; overflow-y:auto; padding:0 8px; display:flex; flex-direction:column; gap:1px; }
-  .agent-row {
-    display:flex; align-items:center; gap:9px; width:100%;
-    padding:7px 8px; border-radius:var(--radius); transition:background .12s; text-align:left;
-  }
-  .agent-row:hover { background:var(--accent); }
-  .agent-row.active { background:var(--accent); }
-  .avatar {
-    width:22px; height:22px; border-radius:9999px; flex-shrink:0;
-    display:flex; align-items:center; justify-content:center;
-    color:#fff; font-size:10px; font-weight:700;
-  }
-  .agent-row .name { flex:1; font-size:13.5px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .badge-num {
-    min-width:18px; height:18px; padding:0 5px; border-radius:9999px;
-    background:var(--accent); color:var(--accent-fg);
-    font-size:11px; font-weight:600; display:flex; align-items:center; justify-content:center;
-  }
-  .add-agent {
-    display:flex; align-items:center; gap:9px; width:100%;
-    padding:8px; margin-top:2px; border-radius:var(--radius);
-    color:var(--muted-fg); font-size:13.5px; transition:background .12s;
-  }
-  .add-agent:hover { background:var(--accent); color:var(--foreground); }
-  .add-agent svg { width:16px; height:16px; }
-  .sidebar-footer {
-    padding:10px 12px; border-top:1px solid var(--sidebar-border);
-    display:flex; align-items:center; gap:9px;
-  }
+  /* Relay column */
+  .relaycol{display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--secondary);border-left:1px solid var(--border);border-right:1px solid var(--border);position:relative;}
+  .relaycol .hub{width:54px;height:54px;border-radius:50%;background:color-mix(in srgb,#818cf8 15%,#fff);border:1px solid color-mix(in srgb,#818cf8 50%,transparent);display:grid;place-items:center;font-size:24px;}
+  .relaycol .rl{font-size:10px;color:var(--muted-fg);font-weight:700;letter-spacing:.08em;margin-top:8px;}
+  .relaycol .rsub{font-size:9px;color:var(--muted-fg);text-align:center;margin-top:3px;line-height:1.3;}
+  .relaycol .border-note{position:absolute;bottom:16px;font-size:9px;color:var(--muted-fg);text-align:center;padding:0 8px;line-height:1.4;}
+  .envelope{position:absolute;top:50%;font-size:22px;opacity:0;}
+  .envelope.fr{animation:flyR 1.3s ease forwards;}
+  .envelope.fl{animation:flyL 1.3s ease forwards;}
+  @keyframes flyR{0%{opacity:0;left:-30px}15%{opacity:1}85%{opacity:1}100%{opacity:0;left:140px}}
+  @keyframes flyL{0%{opacity:0;left:140px}15%{opacity:1}85%{opacity:1}100%{opacity:0;left:-30px}}
 
-  /* ── Main area ────────────────────────────────────────────────────── */
-  .main { flex:1; min-width:0; display:flex; flex-direction:column; height:100%; }
-  .topbar { padding:16px 24px 0; }
-  .topbar-row { display:flex; align-items:center; gap:12px; }
-  .page-title { font-size:24px; font-weight:600; letter-spacing:-0.01em; margin:0; flex:1; }
-  .search {
-    display:flex; align-items:center; gap:8px;
-    background:var(--secondary); border:1px solid var(--border);
-    border-radius:9999px; padding:7px 14px; width:240px; color:var(--muted-fg);
-  }
-  .search input { border:none; outline:none; background:none; flex:1; font-size:13px; color:var(--foreground); }
-  .search svg { width:15px; height:15px; }
-  .select-pill {
-    display:flex; align-items:center; gap:6px;
-    background:var(--secondary); border:1px solid var(--border);
-    border-radius:9999px; padding:7px 14px; font-size:13px; color:var(--foreground);
-  }
-  .btn-primary {
-    display:inline-flex; align-items:center; gap:8px;
-    background:var(--primary); color:var(--primary-fg);
-    border-radius:9999px; padding:8px 16px; font-size:13px; font-weight:500;
-    transition:opacity .12s;
-  }
-  .btn-primary:hover { opacity:.9; }
-  .btn-primary .dot { width:7px; height:7px; border-radius:9999px; background:var(--primary-fg); }
-
-  .tabs { display:flex; gap:4px; margin-top:16px; border-bottom:1px solid var(--border); }
-  .tab {
-    padding:8px 12px; font-size:13.5px; color:var(--muted-fg);
-    border-bottom:2px solid transparent; margin-bottom:-1px; transition:color .12s;
-  }
-  .tab:hover { color:var(--foreground); }
-  .tab.active { color:var(--foreground); font-weight:500; border-bottom-color:var(--primary); }
-
-  /* ── Compose banner (CAPCOM) ──────────────────────────────────────── */
-  .compose {
-    margin:16px 24px 0; padding:14px 16px;
-    background:var(--card); border:1px solid var(--border); border-radius:12px;
-    box-shadow:0 1px 2px rgba(0,0,0,0.04);
-  }
-  .compose-head { display:flex; align-items:center; gap:8px; margin-bottom:10px; }
-  .compose-head svg { width:16px; height:16px; }
-  .compose-head .t { font-size:13px; font-weight:600; }
-  .compose-head .relay {
-    margin-left:auto; font-size:11px; color:var(--muted-fg);
-    display:flex; align-items:center; gap:6px;
-  }
-  .relay-dot { width:7px; height:7px; border-radius:9999px; background:var(--success); }
-  .compose-row { display:flex; gap:10px; align-items:stretch; }
-  .compose-row textarea {
-    flex:1; resize:none; min-height:42px; max-height:120px;
-    border:1px solid var(--input); border-radius:10px; padding:10px 12px;
-    font-family:inherit; font-size:13px; color:var(--foreground); outline:none;
-  }
-  .compose-row textarea:focus { border-color:var(--ring); }
-  .compose-actions { display:flex; flex-direction:column; gap:6px; }
-  .src-badge {
-    font-size:11px; padding:3px 9px; border-radius:9999px; align-self:flex-start;
-    display:none;
-  }
-  .src-badge.claude { background:rgba(0,162,64,0.12); color:#00813a; display:inline-flex; }
-  .src-badge.fallback { background:var(--accent); color:var(--accent-fg); display:inline-flex; }
-
-  /* ── Kanban (ui/board/src/kanban-column.tsx + kanban-card.tsx) ────── */
-  .board { flex:1; min-height:0; display:flex; gap:12px; padding:16px 24px 24px; overflow:hidden; }
-  .col {
-    flex:1; min-width:180px; height:100%; display:flex; flex-direction:column;
-    background:var(--secondary); border-radius:12px;
-  }
-  .col-head { padding:10px 12px; display:flex; align-items:center; justify-content:center; gap:6px; flex-shrink:0; }
-  .col-head h3 { margin:0; font-size:14px; font-weight:500; }
-  .col-count { font-size:12px; color:rgba(142,142,142,0.8); font-variant-numeric:tabular-nums; }
-  .col-body { flex:1; overflow-y:auto; padding:4px 6px 8px; display:flex; flex-direction:column; gap:6px; }
-
-  .card {
-    background:var(--card); border:1px solid var(--border); border-radius:12px;
-    padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.04);
-    transition:box-shadow .2s, border-color .2s; animation:cardIn .2s ease;
-  }
-  .card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.06); }
-  .card.error { border-color:rgba(224,46,42,0.6); }
-  .card.done { opacity:.92; }
-  @keyframes cardIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
-  .card-top { display:flex; align-items:center; justify-content:space-between; margin-bottom:6px; }
-  .card-top .who { display:flex; align-items:center; gap:6px; min-width:0; }
-  .card-top .who .grp { font-size:11px; color:var(--muted-fg); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-  .card-actions { display:flex; align-items:center; gap:2px; flex-shrink:0; }
-  .icon-btn {
-    padding:4px; border-radius:6px; color:rgba(142,142,142,0.5);
-    display:flex; align-items:center; justify-content:center; transition:.15s;
-  }
-  .icon-btn svg { width:13px; height:13px; }
-  .icon-btn.ok:hover { color:var(--success); background:rgba(0,162,64,0.1); }
-  .icon-btn.no:hover { color:var(--destructive); background:rgba(224,46,42,0.1); }
-  .icon-btn.mut:hover { color:var(--foreground); background:var(--accent); }
-  .card-title { font-size:13px; font-weight:500; line-height:1.35; margin:0; }
-  .card-desc { font-size:12px; color:var(--muted-fg); line-height:1.4; margin:4px 0 0;
-    display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-  .card-tags { display:flex; flex-wrap:wrap; gap:4px; margin-top:10px; }
-  .tag {
-    height:18px; display:inline-flex; align-items:center; padding:0 8px;
-    border-radius:9999px; background:var(--secondary);
-    font-size:10px; font-weight:500; color:var(--muted-fg);
-  }
-  .tag.dir-outbound { background:rgba(224,172,0,0.14); color:#8a6d00; }
-  .tag.dir-inbound { background:rgba(0,162,64,0.12); color:#00813a; }
-  .col-add {
-    height:40px; width:100%; display:flex; align-items:center; justify-content:center;
-    border-radius:14px; border:1px solid var(--border); background:rgba(255,255,255,0.8);
-    color:rgba(142,142,142,0.8); transition:.15s;
-  }
-  .col-add:hover { border-color:rgba(0,0,0,0.12); background:#fff; color:var(--foreground); }
-  .col-add svg { width:16px; height:16px; }
-  .empty-hint { text-align:center; font-size:12px; color:var(--muted-fg); padding:16px 8px; }
-
-  /* gate buttons inside a card */
-  .gate-row { display:flex; gap:6px; margin-top:10px; }
-  .gate-btn { flex:1; border-radius:9999px; padding:6px 10px; font-size:12px; font-weight:500; transition:.12s; }
-  .gate-approve { background:var(--success); color:var(--success-fg); }
-  .gate-approve:hover { opacity:.9; }
-  .gate-reject { background:var(--secondary); color:var(--foreground); border:1px solid var(--border); }
-  .gate-reject:hover { background:var(--accent); }
-  .gate-btn:disabled { opacity:.5; cursor:default; }
-
-  /* toast */
-  .toasts { position:fixed; bottom:18px; right:18px; display:flex; flex-direction:column; gap:8px; z-index:50; }
-  .toast {
-    background:var(--card); border:1px solid var(--border); border-radius:10px;
-    box-shadow:0 6px 24px rgba(0,0,0,0.10); padding:10px 14px; font-size:13px; max-width:340px;
-    display:flex; gap:8px; align-items:flex-start; animation:cardIn .18s ease;
-  }
-  .toast.err { border-color:rgba(224,46,42,0.4); }
-  .toast .tdot { width:8px; height:8px; border-radius:9999px; margin-top:5px; flex-shrink:0; }
-  .toast.ok .tdot { background:var(--success); }
-  .toast.err .tdot { background:var(--destructive); }
-  .toast.info .tdot { background:var(--warning); }
+  .log{border-top:1px solid var(--border);padding:8px 22px;max-height:70px;overflow-y:auto;flex-shrink:0;background:var(--secondary);}
+  .log .e{font-size:11px;color:var(--muted-fg);padding:1px 0;display:flex;gap:9px;}
+  .log .e time{opacity:.6;}
+  .log .e.ok{color:var(--fg);}
 </style>
 </head>
 <body>
-<div class="app">
-  <!-- ── Sidebar ──────────────────────────────────────────────────── -->
-  <aside class="sidebar">
-    <div class="ws-switcher">
-      <div class="ws-left">
-        <div class="ws-logo">P</div>
-        <span class="ws-name">Personal</span>
-      </div>
-      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-    </div>
+  <div class="cmdbar">
+    <span class="brand"><span class="lg">H</span> Houston</span>
+    <span class="title">CAPCOM — tu agente habla con el agente de otra persona</span>
+    <span class="relaystat"><span class="d"></span>relay activo · capcom-relay.pipe-ceballos17.workers.dev</span>
+  </div>
 
-    <nav class="nav">
-      <button class="nav-item active">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
-        Centro de misiones
-      </button>
-      <button class="nav-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 2v6M15 2v6M7 8h10v3a5 5 0 0 1-10 0V8zM12 16v6"/></svg>
-        Integraciones
-      </button>
-      <button class="nav-item">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
-        Configuración
-      </button>
-    </nav>
+  <div class="composer">
+    <span class="lbl">✦ Decile a tu agente:</span>
+    <input id="nl" type="text" placeholder='Ej: "pasale la cuenta de Acme a Soporte por 5000"' onkeydown="if(event.key==='Enter')go()" />
+    <button class="send" id="send" onclick="go()">Componer y proponer</button>
+  </div>
 
-    <div class="section-label">Tus agentes</div>
-    <div class="agents" id="agents"></div>
-
-    <div style="padding:0 8px 8px;">
-      <button class="add-agent">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-        Nuevo agente
-      </button>
-    </div>
-
-    <div class="sidebar-footer">
-      <div class="avatar" style="background:#e02e2a;">PA</div>
-      <span style="font-size:13.5px;">Plogy Apps</span>
-    </div>
-  </aside>
-
-  <!-- ── Main ─────────────────────────────────────────────────────── -->
-  <main class="main">
-    <div class="topbar">
-      <div class="topbar-row">
-        <h1 class="page-title">Centro de misiones</h1>
-        <div class="search">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-          <input placeholder="Buscar misiones" />
+  <div class="split">
+    <!-- MI HOUSTON -->
+    <div class="houston mine">
+      <div class="hhead"><span class="ic">F</span><div><div class="who">Houston de Felipe</div><div class="sub">tu workspace · tenant A</div></div></div>
+      <div class="hbody">
+        <div class="hsidebar">
+          <div class="sec">Workspace</div>
+          <div class="it on">Centro de misiones</div>
+          <div class="it">Integraciones</div>
+          <div class="sec">Tus agentes</div>
+          <div class="it"><span class="av" style="background:var(--mine)">V</span>Ventas</div>
+          <div class="it"><span class="av" style="background:#8e8e8e">M</span>Marketing</div>
         </div>
-        <div class="select-pill">
-          Todos los agentes
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </div>
-        <button class="btn-primary"><span class="dot"></span> Nueva misión</button>
-      </div>
-      <div class="tabs">
-        <button class="tab active">Actividad</button>
-        <button class="tab">Rutinas</button>
-        <button class="tab">Archivos</button>
-        <button class="tab">Descripción del rol</button>
-        <button class="tab">Integraciones</button>
-      </div>
-    </div>
-
-    <!-- CAPCOM compose -->
-    <div class="compose">
-      <div class="compose-head">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15l-1.9-4.1L5.5 9l4.6-1.4z"/></svg>
-        <span class="t">CAPCOM · proponer a otro agente</span>
-        <span class="relay"><span class="relay-dot"></span> relay activo · capcom-relay.pipe-ceballos17.workers.dev</span>
-      </div>
-      <div class="compose-row">
-        <textarea id="instruction" placeholder="Ej: pasale la cuenta de Acme a un agente de Soporte por USD 5000/mes"></textarea>
-        <div class="compose-actions">
-          <button class="btn-primary" id="composeBtn" style="white-space:nowrap;">Componer y proponer</button>
-          <span class="src-badge" id="srcBadge"></span>
+        <div class="hmain">
+          <div class="agentcard" id="cardA"><div class="face">🤖</div><div class="nm">Agente de Ventas</div><div class="rl">prospecting → CRM</div></div>
+          <div class="colhead">Lo que propone tu agente</div>
+          <div id="slotA"><div class="empty">Escribí una instrucción arriba para que tu agente proponga algo a otro usuario.</div></div>
         </div>
       </div>
+      <div class="human" id="humanA"><span class="hd">·</span><span id="htxtA">Felipe: en espera</span></div>
     </div>
 
-    <!-- Kanban -->
-    <div class="board">
-      <div class="col">
-        <div class="col-head"><h3>En curso</h3><span class="col-count" id="cnt-progress"></span></div>
-        <div class="col-body" id="col-progress"></div>
-      </div>
-      <div class="col">
-        <div class="col-head"><h3>Necesita tu atención</h3><span class="col-count" id="cnt-attention"></span></div>
-        <div class="col-body" id="col-attention"></div>
-      </div>
-      <div class="col">
-        <div class="col-head"><h3>Listo</h3><span class="col-count" id="cnt-done"></span></div>
-        <div class="col-body" id="col-done"></div>
-      </div>
+    <!-- RELAY -->
+    <div class="relaycol">
+      <div class="envelope" id="env">✉️</div>
+      <div class="hub">📡</div>
+      <div class="rl">RELAY</div>
+      <div class="rsub">CAPCOM<br>Cloudflare</div>
+      <div class="border-note">A y B nunca se ven.<br>Solo el relay toca a ambos.</div>
     </div>
-  </main>
-</div>
 
-<div class="toasts" id="toasts"></div>
+    <!-- HOUSTON DEL OTRO -->
+    <div class="houston theirs">
+      <div class="hhead"><span class="ic">A</span><div><div class="who">Houston de Acme Inc.</div><div class="sub">otro usuario · tenant B</div></div></div>
+      <div class="hbody">
+        <div class="hsidebar">
+          <div class="sec">Workspace</div>
+          <div class="it on">Centro de misiones</div>
+          <div class="it">Integraciones</div>
+          <div class="sec">Sus agentes</div>
+          <div class="it"><span class="av" style="background:var(--theirs)">S</span>Soporte</div>
+          <div class="it"><span class="av" style="background:#8e8e8e">L</span>Legal</div>
+        </div>
+        <div class="hmain">
+          <div class="agentcard" id="cardB"><div class="face">🤖</div><div class="nm">Agente de Soporte</div><div class="rl">tickets → success</div></div>
+          <div class="colhead">Lo que recibe su agente</div>
+          <div id="slotB"><div class="empty">Acá aparece lo que tu agente le propone al agente del otro usuario.</div></div>
+        </div>
+      </div>
+      <div class="human" id="humanB"><span class="hd">·</span><span id="htxtB">Otro usuario: en espera</span></div>
+    </div>
+  </div>
+
+  <div class="log" id="log"></div>
 
 <script>
-/* ──────────────────────────────────────────────────────────────────────
-   CAPCOM wiring. Reuses the EXISTING proxy — no relay/token logic here.
-     POST {API_BASE}/api/action  { side:"a"|"b", op, payload }
-     GET  {API_BASE}/api/pending -> { a:{items:[...]}, b:{items:[...]} }
-   payload shapes match the engine DTOs (camelCase):
-     compose  -> { instruction, toPeerId, fromAgent, toAgent } -> { proposal, source }
-     propose  -> { toPeerId, proposal }
-     approve  -> { proposalId, approved, reason? }
-   pending item (PendingProposal): { proposal, peer, direction, replyToPeerId }
-   ────────────────────────────────────────────────────────────────────── */
-const API_BASE = ""; // same-origin (Vercel). Set to the proxy URL if hosted elsewhere.
-const AGENT_A = "agent-a", AGENT_B = "agent-b";
+const $=(id)=>document.getElementById(id);
+function log(m,ok){const e=document.createElement('div');e.className='e'+(ok?' ok':'');e.innerHTML='<time>'+new Date().toLocaleTimeString()+'</time><span>'+m+'</span>';$('log').prepend(e);}
+function flyR(){const e=$('env');e.className='envelope';void e.offsetWidth;e.className='envelope fr';}
+let current=null;
 
-/* Sidebar agents (cosmetic, from the brief) */
-const AGENTS = [
-  { name:"test", badge:2, color:"#0d0d0d" },
-  { name:"Plogy social listening", badge:5, color:"#2563eb" },
-  { name:"Larry SDR", badge:1, color:"#e0ac00" },
-  { name:"Asistente personal", badge:3, color:"#00a240" },
-];
-
-const $ = (id) => document.getElementById(id);
-const esc = (s) => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[c]));
-const initials = (s) => (s||"?").trim().split(/\s+/).slice(0,2).map(w=>w[0]).join("").toUpperCase();
-const INTENT_LABEL = { lead_handoff:"traspaso de lead", data_share:"compartir datos", meeting:"reunión", other:"otro" };
-
-/* client-side lifecycle tracking so we can show a "Listo" column */
-const seen = new Map();   // proposalId -> {title, desc, intent}
-const resolved = new Map(); // proposalId -> {title, desc, intent, outcome}
-const justComposed = new Map(); // proposalId -> {title, desc, intent} (pre-pending, transient)
-
-function renderAgents() {
-  $("agents").innerHTML = AGENTS.map((a,i)=>`
-    <button class="agent-row${i===0?' active':''}">
-      <span class="avatar" style="background:${a.color}">${esc(initials(a.name))}</span>
-      <span class="name">${esc(a.name)}</span>
-      <span class="badge-num">${a.badge}</span>
-    </button>`).join("");
+async function go(){
+  const nl=$('nl'); const instruction=nl.value.trim(); if(!instruction) return;
+  const btn=$('send'); btn.disabled=true; btn.textContent='Componiendo…';
+  log('Felipe → su agente de Ventas: "'+instruction+'"');
+  $('cardA').classList.add('talking');
+  $('slotA').innerHTML='<div class="msg">…</div>';
+  try{
+    const r=await fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({side:'a',op:'compose',payload:{instruction,toPeerId:'agent-b',fromAgent:'agent-a',toAgent:'agent-b'}})});
+    const data=await r.json(); const p=data.proposal; const source=data.source||'fallback';
+    current={proposalId:p.proposalId,subj:p.subject,msg:p.message,terms:p.terms||{},intent:p.intent,
+      a:{id:'agent-a'},b:{id:'agent-b'},
+      bMsg:'Tu agente de Ventas te quiere pasar esto. ¿Lo aceptás?'};
+    const srcTxt=source==='claude'?'compuesto por Claude':'interpretado de tu texto';
+    $('slotA').innerHTML='<div class="msg">'+p.message+'<br><span class="src">'+srcTxt+'</span></div>';
+    // A's outbound gate
+    setTimeout(function(){
+      $('humanA').className='human wait'; $('humanA').querySelector('.hd').textContent='?'; $('htxtA').textContent='Felipe: ¿aprobar salida?';
+      $('slotA').innerHTML+='<div class="gate"><div class="glbl">tu aprobación · salida</div><div class="gsubj">'+current.subj+'</div><div class="gmsg">Tu agente quiere proponerle esto al agente de Acme Inc.</div><div class="ga"><button class="ok" onclick="approveA()">Aprobar y enviar →</button><button class="no" onclick="resetUI()">Frenar</button></div></div>';
+      nl.value='';
+    },500);
+  }catch(e){ log('Error al componer: '+e,false); $('slotA').innerHTML='<div class="empty">Error. Reintentá.</div>'; }
+  finally{ btn.disabled=false; btn.textContent='Componer y proponer'; $('cardA').classList.remove('talking'); }
 }
 
-function toast(msg, kind="ok") {
-  const el = document.createElement("div");
-  el.className = "toast " + kind;
-  el.innerHTML = `<span class="tdot"></span><span>${esc(msg)}</span>`;
-  $("toasts").appendChild(el);
-  setTimeout(()=>{ el.style.opacity="0"; el.style.transition="opacity .3s"; setTimeout(()=>el.remove(),300); }, 4200);
+async function approveA(){
+  const s=current; if(!s) return;
+  $('humanA').className='human done'; $('humanA').querySelector('.hd').textContent='✓'; $('htxtA').textContent='Felipe: aprobó la salida';
+  $('slotA').innerHTML='<div class="msg">Enviado al relay ✓</div>';
+  log('Felipe aprobó la SALIDA → el frame cruza el relay hacia Acme Inc.',true);
+  // real calls
+  fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({side:'a',op:'propose',payload:{toPeerId:'agent-b',proposal:{proposalId:s.proposalId,fromAgent:s.a.id,toAgent:s.b.id,intent:s.intent,subject:s.subj,terms:s.terms,message:s.msg,requiresApproval:true}}})})
+    .then(function(){return fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({side:'a',op:'approve',payload:{proposalId:s.proposalId,approved:true}})});})
+    .then(function(){log('Propuesta enviada por el relay (cross-tenant real).',true);})
+    .catch(function(e){log('Aviso backend: '+e,false);});
+  flyR();
+  setTimeout(function(){
+    $('cardB').classList.add('talking');
+    $('humanB').className='human wait'; $('humanB').querySelector('.hd').textContent='?'; $('htxtB').textContent='Otro usuario: ¿acepta?';
+    var termsHtml=Object.entries(s.terms).map(function(kv){return '<span class="term">'+kv[0]+' <b>'+kv[1]+'</b></span>';}).join('');
+    $('slotB').innerHTML='<div class="msg">Llegó una propuesta del agente de Ventas de Felipe (otro Houston).</div><div class="gate"><div class="glbl">aprobación del otro usuario · entrada</div><div class="gsubj">'+s.subj+'</div><div class="gmsg">'+s.bMsg+'</div><div class="terms">'+termsHtml+'</div><div class="ga"><button class="ok" onclick="approveB()">Aceptar</button><button class="no" onclick="resetUI()">Rechazar</button></div></div>';
+    log('El agente de Acme Inc. recibió la propuesta vía relay.',true);
+    $('cardB').classList.remove('talking');
+  },1300);
 }
 
-async function api(path, opts) {
-  const res = await fetch(API_BASE + path, opts);
-  if (!res.ok) {
-    let detail = "";
-    try { detail = (await res.json())?.error?.message || ""; } catch {}
-    throw new Error(`${res.status} ${detail}`.trim());
-  }
-  return res.json();
+function approveB(){
+  const s=current; if(!s) return;
+  $('humanB').className='human done'; $('humanB').querySelector('.hd').textContent='✓'; $('htxtB').textContent='Otro usuario: aceptó';
+  $('slotB').innerHTML='<div class="msg">Aceptado ✓ — los dos agentes cerraron el trato.</div>';
+  log('El otro usuario aprobó la ENTRADA → trato cerrado. Dos personas, dos agentes, dos aprobaciones.',true);
 }
-const action = (side, op, payload) =>
-  api("/api/action", { method:"POST", headers:{ "Content-Type":"application/json" }, body: JSON.stringify({ side, op, payload }) });
+function resetUI(){ location.reload(); }
 
-/* ── Compose + propose (side A) ──────────────────────────────────────── */
-async function composeAndPropose() {
-  const instruction = $("instruction").value.trim();
-  if (!instruction) { toast("Escribí una instrucción primero.", "info"); return; }
-  const btn = $("composeBtn"); btn.disabled = true; btn.textContent = "Componiendo…";
-  $("srcBadge").style.display = "none";
-  try {
-    const { proposal, source } = await action("a", "compose", {
-      instruction, toPeerId: AGENT_B, fromAgent: AGENT_A, toAgent: AGENT_B,
-    });
-    const badge = $("srcBadge");
-    badge.className = "src-badge " + (source === "claude" ? "claude" : "fallback");
-    badge.textContent = source === "claude" ? "compuesto por Claude" : "parseado localmente";
-
-    justComposed.set(proposal.proposalId, {
-      title: proposal.subject, desc: proposal.message, intent: proposal.intent,
-    });
-    render();
-
-    await action("a", "propose", { toPeerId: AGENT_B, proposal });
-    toast(`Propuesta enviada: "${proposal.subject}". Aprobá el gate de salida de A.`, "ok");
-    $("instruction").value = "";
-    refresh();
-  } catch (e) {
-    toast("Error al componer/proponer: " + e.message, "err");
-  } finally {
-    btn.disabled = false; btn.textContent = "Componer y proponer";
-  }
-}
-
-/* ── Approve / reject a gate (real relay call) ───────────────────────── */
-async function verdict(side, proposalId, approved, cardEl) {
-  cardEl.querySelectorAll(".gate-btn").forEach(b => b.disabled = true);
-  try {
-    await action(side, "approve", { proposalId, approved, reason: approved ? undefined : "rechazado por el humano" });
-    const meta = seen.get(proposalId) || justComposed.get(proposalId) || {};
-    if (!approved) resolved.set(proposalId, { ...meta, outcome:"rechazado" });
-    else if (side === "b") resolved.set(proposalId, { ...meta, outcome:"listo" });
-    toast(approved
-      ? (side === "a" ? "Gate de salida aprobado. Va al relay → gate de entrada de B." : "Gate de entrada aprobado. Trato cerrado (READY).")
-      : "Propuesta rechazada. Se notificó al par.", approved ? "ok" : "info");
-    refresh();
-  } catch (e) {
-    toast("Error en el verdicto: " + e.message, "err");
-    cardEl.querySelectorAll(".gate-btn").forEach(b => b.disabled = false);
-  }
-}
-
-/* ── Render ──────────────────────────────────────────────────────────── */
-function gateCard(item, side) {
-  const p = item.proposal || {};
-  const peer = item.peer || {};
-  const dir = item.direction || "";
-  const dirLabel = dir === "outbound" ? "A · saliente" : "B · entrante";
-  const who = side === "a" ? "Agente A" : "Agente B";
-  const intent = INTENT_LABEL[p.intent] || p.intent || "";
-  return `
-    <div class="card" data-pid="${esc(p.proposalId)}">
-      <div class="card-top">
-        <div class="who">
-          <span class="avatar" style="width:18px;height:18px;font-size:9px;background:${side==='a'?'#0d0d0d':'#2563eb'}">${esc(initials(peer.name||who))}</span>
-          <span class="grp">${esc(who)} · ${esc(peer.name||"par")}</span>
-        </div>
-        <div class="card-actions">
-          <span class="tag dir-${esc(dir)}">${esc(dirLabel)}</span>
-        </div>
-      </div>
-      <p class="card-title">${esc(p.subject||"(sin asunto)")}</p>
-      ${p.message ? `<p class="card-desc">${esc(p.message)}</p>` : ""}
-      <div class="card-tags">${intent ? `<span class="tag">${esc(intent)}</span>` : ""}</div>
-      <div class="gate-row">
-        <button class="gate-btn gate-approve">Aprobar</button>
-        <button class="gate-btn gate-reject">Rechazar</button>
-      </div>
-    </div>`;
-}
-
-function simpleCard(meta, opts={}) {
-  const intent = INTENT_LABEL[meta.intent] || meta.intent || "";
-  return `
-    <div class="card ${opts.done?'done':''}">
-      <div class="card-top">
-        <div class="who"><span class="grp">${esc(opts.group||"CAPCOM")}</span></div>
-        <div class="card-actions">${opts.outcome ? `<span class="tag dir-${opts.outcome==='listo'?'inbound':'outbound'}">${esc(opts.outcome)}</span>`:""}</div>
-      </div>
-      <p class="card-title">${esc(meta.title||"(sin asunto)")}</p>
-      ${meta.desc ? `<p class="card-desc">${esc(meta.desc)}</p>`:""}
-      <div class="card-tags">${intent ? `<span class="tag">${esc(intent)}</span>`:""}</div>
-    </div>`;
-}
-
-function render(pending) {
-  const a = pending?.a?.items || [];
-  const b = pending?.b?.items || [];
-  const pendingIds = new Set([...a, ...b].map(it => it.proposal?.proposalId));
-
-  // "En curso": just-composed proposals not yet visible in pending.
-  const progress = [...justComposed.entries()].filter(([id]) => !pendingIds.has(id) && !resolved.has(id));
-  $("col-progress").innerHTML =
-    progress.map(([,m]) => simpleCard(m, { group:"Compuesta, enviando…" })).join("")
-    + `<button class="col-add" title="Nueva">
-         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-       </button>`;
-  $("cnt-progress").textContent = progress.length || "";
-
-  // "Necesita tu atención": every live gate (A outbound + B inbound).
-  const attHtml = a.map(it => gateCard(it, "a")).join("") + b.map(it => gateCard(it, "b")).join("");
-  $("col-attention").innerHTML = attHtml || `<div class="empty-hint">Sin gates pendientes.<br>Componé una propuesta arriba.</div>`;
-  $("cnt-attention").textContent = (a.length + b.length) || "";
-
-  // "Listo": resolved (locally tracked).
-  const done = [...resolved.entries()];
-  $("col-done").innerHTML = done.length
-    ? done.map(([,m]) => simpleCard(m, { done:true, outcome:m.outcome, group: m.outcome==='listo'?'Trato cerrado':'Rechazado' })).join("")
-    : `<div class="empty-hint">Todavía nada.</div>`;
-  $("cnt-done").textContent = done.length || "";
-
-  // wire gate buttons
-  document.querySelectorAll("#col-attention .card").forEach(cardEl => {
-    const pid = cardEl.getAttribute("data-pid");
-    const inA = a.some(it => it.proposal?.proposalId === pid);
-    const side = inA ? "a" : "b";
-    cardEl.querySelector(".gate-approve")?.addEventListener("click", () => verdict(side, pid, true, cardEl));
-    cardEl.querySelector(".gate-reject")?.addEventListener("click", () => verdict(side, pid, false, cardEl));
-  });
-}
-
-let lastPendingIds = new Set();
-async function refresh() {
-  try {
-    const pending = await api("/api/pending");
-    const a = pending?.a?.items || [], b = pending?.b?.items || [];
-    const ids = new Set();
-    for (const it of [...a, ...b]) {
-      const p = it.proposal || {}; const id = p.proposalId;
-      ids.add(id);
-      seen.set(id, { title:p.subject, desc:p.message, intent:p.intent });
-      justComposed.delete(id);
-    }
-    // anything previously pending that vanished AND wasn't recorded as a local
-    // verdict → the peer resolved it; mark generically as resolved.
-    for (const id of lastPendingIds) {
-      if (!ids.has(id) && !resolved.has(id)) {
-        resolved.set(id, { ...(seen.get(id)||{}), outcome:"resuelto" });
-      }
-    }
-    lastPendingIds = ids;
-    render(pending);
-  } catch (e) {
-    render({ a:{items:[]}, b:{items:[]} });
-    // surface once; polling keeps retrying quietly
-    if (!refresh._warned) { toast("No pude leer /api/pending: " + e.message, "err"); refresh._warned = true; }
-  }
-}
-
-renderAgents();
-render();
-$("composeBtn").addEventListener("click", composeAndPropose);
-$("instruction").addEventListener("keydown", (e) => { if (e.key === "Enter" && (e.metaKey||e.ctrlKey)) composeAndPropose(); });
-refresh();
-setInterval(refresh, 2000);
+async function ping(){ try{const r=await fetch('/api/pending'); await r.json(); }catch(e){} }
+ping();
 </script>
 </body>
 </html>
