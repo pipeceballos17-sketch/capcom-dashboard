@@ -5,98 +5,112 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Houston · CAPCOM</title>
 <style>
-  /* Houston light tokens (exact from ui/core/src/globals.css :root) */
+  /* === EXACT Houston light tokens (ui/core/src/globals.css :root) === */
   :root{
-    --bg:#ffffff; --fg:#0d0d0d; --card:#ffffff; --card-fg:#0d0d0d;
-    --primary:#0d0d0d; --primary-fg:#ffffff; --secondary:#f5f5f5; --secondary-fg:#0d0d0d;
-    --muted:#f5f5f5; --muted-fg:#8e8e8e; --accent:rgba(0,0,0,0.07); --accent-fg:#424242;
-    --destructive:#e02e2a; --border:rgba(0,0,0,0.06); --input:#e3e3e3;
-    --sidebar:#f5f5f5; --sidebar-fg:#0d0d0d; --sidebar-border:rgba(0,0,0,0.06);
+    --background:#ffffff; --foreground:#0d0d0d; --card:#ffffff; --card-foreground:#0d0d0d;
+    --primary:#0d0d0d; --primary-foreground:#ffffff; --secondary:#f5f5f5; --secondary-foreground:#0d0d0d;
+    --muted:#f5f5f5; --muted-foreground:#8e8e8e; --accent:rgba(0,0,0,0.07); --accent-foreground:#424242;
+    --destructive:#e02e2a; --border:rgba(0,0,0,0.06); --input:#e3e3e3; --ring:#0d0d0d;
+    --sidebar:#f5f5f5; --sidebar-foreground:#0d0d0d; --sidebar-border:rgba(0,0,0,0.06);
     --success:#00a240; --warning:#e0ac00; --radius:0.5rem;
     --mine:#d85a30; --theirs:#1d9e75;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--fg);font-family:ui-sans-serif,-apple-system,"system-ui","Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif;-webkit-font-smoothing:antialiased;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
+  body{background:var(--background);color:var(--foreground);font-family:ui-sans-serif,-apple-system,"system-ui","Segoe UI",Helvetica,"Apple Color Emoji",Arial,sans-serif;-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;height:100vh;overflow:hidden;display:flex;flex-direction:column;}
   button{cursor:pointer;font-family:inherit;}
   ::-webkit-scrollbar{width:6px;height:6px;}
-  ::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--fg) 15%,transparent);border-radius:3px;}
+  ::-webkit-scrollbar-track{background:transparent;}
+  ::-webkit-scrollbar-thumb{background:color-mix(in srgb,var(--foreground) 15%,transparent);border-radius:3px;}
+  ::-webkit-scrollbar-thumb:hover{background:color-mix(in srgb,var(--foreground) 30%,transparent);}
 
-  /* Top command bar */
-  .cmdbar{border-bottom:1px solid var(--border);padding:13px 22px;display:flex;align-items:center;gap:14px;flex-shrink:0;}
-  .cmdbar .brand{font-weight:700;font-size:15px;display:flex;align-items:center;gap:8px;}
-  .cmdbar .brand .lg{width:22px;height:22px;border-radius:6px;background:var(--primary);color:var(--primary-fg);display:grid;place-items:center;font-size:12px;}
-  .cmdbar .title{font-size:13px;color:var(--muted-fg);}
+  .cmdbar{border-bottom:1px solid var(--border);padding:0 22px;height:52px;display:flex;align-items:center;gap:14px;flex-shrink:0;}
+  .cmdbar .brand{font-weight:600;font-size:14px;display:flex;align-items:center;gap:8px;}
+  .cmdbar .brand .lg{width:22px;height:22px;border-radius:6px;background:var(--primary);color:var(--primary-foreground);display:grid;place-items:center;font-size:12px;font-weight:700;}
+  .cmdbar .title{font-size:12.5px;color:var(--muted-foreground);}
   .cmdbar .relaystat{margin-left:auto;font-size:11.5px;color:var(--success);display:flex;align-items:center;gap:6px;}
   .cmdbar .relaystat .d{width:7px;height:7px;border-radius:50%;background:var(--success);animation:pulse 2s infinite;}
   @keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
 
-  /* Composer */
-  .composer{padding:14px 22px;border-bottom:1px solid var(--border);display:flex;gap:9px;align-items:center;flex-shrink:0;background:var(--secondary);}
-  .composer .lbl{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;white-space:nowrap;}
-  .composer input{flex:1;height:38px;padding:0 14px;border-radius:var(--radius);border:1px solid var(--input);background:var(--bg);color:var(--fg);font-size:13.5px;outline:none;}
-  .composer input:focus{border-color:var(--primary);}
-  .composer .send{height:38px;padding:0 18px;border-radius:9999px;background:var(--primary);color:var(--primary-fg);border:none;font-size:13.5px;font-weight:600;}
+  .composer{padding:13px 22px;border-bottom:1px solid var(--border);display:flex;gap:9px;align-items:center;flex-shrink:0;}
+  .composer .lbl{font-size:12.5px;font-weight:600;display:flex;align-items:center;gap:6px;white-space:nowrap;color:var(--foreground);}
+  .composer input{flex:1;height:38px;padding:0 14px;border-radius:var(--radius);border:1px solid var(--input);background:var(--background);color:var(--foreground);font-size:13.5px;outline:none;transition:border-color .15s;}
+  .composer input:focus{border-color:var(--ring);}
+  .composer input::placeholder{color:var(--muted-foreground);}
+  /* button = exact Houston: rounded-full h-9 text-sm font-medium */
+  .composer .send{height:36px;padding:0 16px;border-radius:9999px;background:var(--primary);color:var(--primary-foreground);border:none;font-size:14px;font-weight:500;transition:opacity .15s;}
+  .composer .send:hover{opacity:.9;}
   .composer .send:disabled{opacity:.5;}
 
-  /* Split stage */
-  .split{flex:1;display:grid;grid-template-columns:1fr 130px 1fr;overflow:hidden;}
+  .split{flex:1;display:grid;grid-template-columns:1fr 132px 1fr;overflow:hidden;}
   .houston{display:flex;flex-direction:column;overflow:hidden;border-top:3px solid transparent;}
   .houston.mine{border-top-color:var(--mine);}
   .houston.theirs{border-top-color:var(--theirs);}
-  .hhead{padding:13px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
-  .hhead .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:15px;color:#fff;font-weight:700;}
+  .hhead{padding:12px 18px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:10px;flex-shrink:0;}
+  .hhead .ic{width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:14px;color:#fff;font-weight:700;}
   .mine .hhead .ic{background:var(--mine);}
   .theirs .hhead .ic{background:var(--theirs);}
-  .hhead .who{font-size:14px;font-weight:700;}
-  .hhead .sub{font-size:11px;color:var(--muted-fg);}
+  .hhead .who{font-size:14px;font-weight:600;}
+  .hhead .sub{font-size:11px;color:var(--muted-foreground);}
   .hbody{flex:1;display:flex;overflow:hidden;}
-  .hsidebar{width:130px;background:var(--sidebar);border-right:1px solid var(--sidebar-border);padding:12px 8px;flex-shrink:0;}
-  .hsidebar .sec{font-size:9.5px;color:var(--muted-fg);text-transform:uppercase;letter-spacing:.05em;padding:6px 8px 4px;font-weight:600;}
-  .hsidebar .it{font-size:11.5px;padding:6px 8px;border-radius:6px;display:flex;align-items:center;gap:7px;color:var(--fg);}
-  .hsidebar .it.on{background:var(--accent);font-weight:600;}
+  .hsidebar{width:128px;background:var(--sidebar);border-right:1px solid var(--sidebar-border);padding:12px 8px;flex-shrink:0;}
+  .hsidebar .sec{font-size:9.5px;color:var(--muted-foreground);text-transform:uppercase;letter-spacing:.05em;padding:7px 8px 4px;font-weight:600;}
+  .hsidebar .it{font-size:11.5px;padding:6px 8px;border-radius:6px;display:flex;align-items:center;gap:7px;color:var(--foreground);margin-bottom:1px;}
+  .hsidebar .it.on{background:var(--accent);font-weight:500;}
   .hsidebar .it .av{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:8px;color:#fff;font-weight:700;}
-  .hmain{flex:1;padding:16px;overflow-y:auto;}
-  .hmain .colhead{font-size:12px;font-weight:700;margin-bottom:12px;text-align:center;color:var(--muted-fg);}
-  .agentcard{display:flex;flex-direction:column;align-items:center;margin-bottom:18px;}
-  .agentcard .face{width:60px;height:60px;border-radius:16px;display:grid;place-items:center;font-size:28px;border:1px solid var(--border);background:var(--card);transition:.3s;}
-  .agentcard.talking .face{box-shadow:0 0 0 4px color-mix(in srgb,var(--warning) 25%,transparent);}
-  .agentcard .nm{font-size:13px;font-weight:600;margin-top:8px;}
-  .agentcard .rl{font-size:11px;color:var(--muted-fg);}
-  .msg{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:10px 12px;font-size:12px;line-height:1.45;margin-bottom:9px;box-shadow:0 1px 2px rgba(0,0,0,0.03);animation:rise .3s;}
+  .hmain{flex:1;padding:16px;overflow-y:auto;display:flex;flex-direction:column;}
+  .agentrow{display:flex;flex-direction:column;align-items:center;margin-bottom:16px;}
+  .agentrow .face{width:56px;height:56px;border-radius:15px;display:grid;place-items:center;font-size:26px;border:1px solid var(--border);background:var(--card);transition:.3s;}
+  .agentrow.talking .face{box-shadow:0 0 0 4px color-mix(in srgb,var(--warning) 22%,transparent);}
+  .agentrow .nm{font-size:13px;font-weight:600;margin-top:8px;}
+  .agentrow .rl{font-size:11px;color:var(--muted-foreground);}
+  .colhead{font-size:11px;font-weight:600;color:var(--muted-foreground);text-align:center;margin-bottom:11px;}
+
+  /* === Houston kanban card (exact structure) === */
+  .kcard{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:12px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,0.04);animation:rise .3s;}
   @keyframes rise{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
-  .msg .src{display:inline-block;font-size:9.5px;color:var(--muted-fg);background:var(--secondary);border-radius:9999px;padding:1px 7px;margin-top:6px;}
-  .gate{border:1px solid color-mix(in srgb,var(--warning) 50%,transparent);background:color-mix(in srgb,var(--warning) 7%,var(--card));border-radius:12px;padding:12px;margin-bottom:9px;animation:rise .3s;}
-  .gate .glbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--warning);font-weight:700;margin-bottom:5px;}
-  .gate .gsubj{font-size:13px;font-weight:600;margin-bottom:4px;}
-  .gate .gmsg{font-size:11.5px;color:var(--fg);line-height:1.4;margin-bottom:8px;}
-  .gate .terms{display:flex;flex-wrap:wrap;gap:5px;margin-bottom:10px;}
-  .gate .term{font-size:10px;color:var(--muted-fg);background:var(--secondary);border-radius:5px;padding:2px 6px;}
-  .gate .term b{color:var(--fg);}
-  .gate .ga{display:flex;gap:7px;}
-  .gate .ok{flex:1;height:30px;border-radius:9999px;background:var(--primary);color:var(--primary-fg);border:none;font-size:12px;font-weight:600;}
-  .gate .no{height:30px;padding:0 12px;border-radius:9999px;background:transparent;color:var(--muted-fg);border:1px solid var(--border);font-size:12px;}
-  .empty{font-size:11.5px;color:var(--muted-fg);text-align:center;padding:20px 8px;}
+  .kcard .top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
+  .kcard .who{display:flex;align-items:center;gap:6px;min-width:0;}
+  .kcard .who .av{width:18px;height:18px;border-radius:50%;display:grid;place-items:center;font-size:8px;color:#fff;font-weight:700;flex-shrink:0;}
+  .kcard .who .nm{font-size:11px;color:var(--muted-foreground);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .kcard .icons{display:flex;align-items:center;gap:2px;flex-shrink:0;}
+  .kcard .icons .ib{width:22px;height:22px;border-radius:6px;display:grid;place-items:center;color:color-mix(in srgb,var(--muted-foreground) 50%,transparent);border:none;background:transparent;}
+  .kcard .icons .ib svg{width:13px;height:13px;}
+  .kcard .icons .ib.ok:hover{color:var(--success);background:color-mix(in srgb,var(--success) 10%,transparent);}
+  .kcard .icons .ib.del:hover{color:var(--destructive);background:color-mix(in srgb,var(--destructive) 10%,transparent);}
+  .kcard .ktitle{font-size:13.5px;font-weight:600;margin-bottom:3px;line-height:1.3;}
+  .kcard .kdesc{font-size:12px;color:var(--muted-foreground);line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;}
+  .kcard .ktags{display:flex;flex-wrap:wrap;gap:5px;margin-top:9px;}
+  .kcard .ktag{font-size:10px;color:var(--accent-foreground);background:var(--secondary);border:1px solid var(--border);border-radius:9999px;padding:2px 8px;}
+  .kcard .ktag b{color:var(--foreground);font-weight:500;}
+  .kcard .src{display:inline-block;font-size:9.5px;color:var(--muted-foreground);background:var(--secondary);border-radius:9999px;padding:1px 7px;margin-top:8px;}
+  /* gate variant */
+  .kcard.gate{border-color:color-mix(in srgb,var(--warning) 45%,transparent);background:color-mix(in srgb,var(--warning) 5%,var(--card));}
+  .kcard .glbl{font-size:9.5px;text-transform:uppercase;letter-spacing:.05em;color:var(--warning);font-weight:700;margin-bottom:7px;}
+  .kcard .ga{display:flex;gap:7px;margin-top:11px;}
+  .kcard .ga .ok{flex:1;height:32px;border-radius:9999px;background:var(--primary);color:var(--primary-foreground);border:none;font-size:12.5px;font-weight:500;}
+  .kcard .ga .ok:hover{opacity:.9;}
+  .kcard .ga .no{height:32px;padding:0 13px;border-radius:9999px;background:transparent;color:var(--muted-foreground);border:1px solid var(--border);font-size:12.5px;}
+  .kcard .ga .no:hover{color:var(--destructive);border-color:var(--destructive);}
+  .empty{font-size:11.5px;color:var(--muted-foreground);text-align:center;padding:22px 10px;border:1px dashed var(--border);border-radius:var(--radius);}
+
   .human{margin-top:auto;border-top:1px solid var(--border);padding:11px 16px;display:flex;align-items:center;gap:9px;font-size:11.5px;flex-shrink:0;}
-  .human .hd{width:18px;height:18px;border-radius:50%;background:var(--muted);display:grid;place-items:center;font-size:10px;color:var(--muted-fg);}
-  .human.wait .hd{background:color-mix(in srgb,var(--warning) 20%,transparent);color:var(--warning);}
-  .human.done .hd{background:color-mix(in srgb,var(--success) 20%,transparent);color:var(--success);}
+  .human .hd{width:18px;height:18px;border-radius:50%;background:var(--muted);display:grid;place-items:center;font-size:10px;color:var(--muted-foreground);border:1px solid var(--border);}
+  .human.wait .hd{background:color-mix(in srgb,var(--warning) 18%,transparent);color:var(--warning);border-color:transparent;}
+  .human.done .hd{background:color-mix(in srgb,var(--success) 18%,transparent);color:var(--success);border-color:transparent;}
 
-  /* Relay column */
   .relaycol{display:flex;flex-direction:column;align-items:center;justify-content:center;background:var(--secondary);border-left:1px solid var(--border);border-right:1px solid var(--border);position:relative;}
-  .relaycol .hub{width:54px;height:54px;border-radius:50%;background:color-mix(in srgb,#818cf8 15%,#fff);border:1px solid color-mix(in srgb,#818cf8 50%,transparent);display:grid;place-items:center;font-size:24px;}
-  .relaycol .rl{font-size:10px;color:var(--muted-fg);font-weight:700;letter-spacing:.08em;margin-top:8px;}
-  .relaycol .rsub{font-size:9px;color:var(--muted-fg);text-align:center;margin-top:3px;line-height:1.3;}
-  .relaycol .border-note{position:absolute;bottom:16px;font-size:9px;color:var(--muted-fg);text-align:center;padding:0 8px;line-height:1.4;}
-  .envelope{position:absolute;top:50%;font-size:22px;opacity:0;}
+  .relaycol .hub{width:54px;height:54px;border-radius:50%;background:color-mix(in srgb,#818cf8 14%,#fff);border:1px solid color-mix(in srgb,#818cf8 45%,transparent);display:grid;place-items:center;font-size:23px;}
+  .relaycol .rl{font-size:10px;color:var(--muted-foreground);font-weight:700;letter-spacing:.08em;margin-top:8px;}
+  .relaycol .rsub{font-size:9px;color:var(--muted-foreground);text-align:center;margin-top:3px;line-height:1.3;}
+  .relaycol .note{position:absolute;bottom:16px;font-size:9px;color:var(--muted-foreground);text-align:center;padding:0 10px;line-height:1.5;}
+  .envelope{position:absolute;top:46%;font-size:22px;opacity:0;}
   .envelope.fr{animation:flyR 1.3s ease forwards;}
-  .envelope.fl{animation:flyL 1.3s ease forwards;}
-  @keyframes flyR{0%{opacity:0;left:-30px}15%{opacity:1}85%{opacity:1}100%{opacity:0;left:140px}}
-  @keyframes flyL{0%{opacity:0;left:140px}15%{opacity:1}85%{opacity:1}100%{opacity:0;left:-30px}}
+  @keyframes flyR{0%{opacity:0;left:-26px}15%{opacity:1}85%{opacity:1}100%{opacity:0;left:142px}}
 
-  .log{border-top:1px solid var(--border);padding:8px 22px;max-height:70px;overflow-y:auto;flex-shrink:0;background:var(--secondary);}
-  .log .e{font-size:11px;color:var(--muted-fg);padding:1px 0;display:flex;gap:9px;}
-  .log .e time{opacity:.6;}
-  .log .e.ok{color:var(--fg);}
+  .log{border-top:1px solid var(--border);padding:8px 22px;max-height:64px;overflow-y:auto;flex-shrink:0;background:var(--secondary);}
+  .log .e{font-size:11px;color:var(--muted-foreground);padding:1px 0;display:flex;gap:9px;}
+  .log .e time{opacity:.6;font-variant-numeric:tabular-nums;}
+  .log .e.ok{color:var(--foreground);}
 </style>
 </head>
 <body>
@@ -113,7 +127,6 @@
   </div>
 
   <div class="split">
-    <!-- MI HOUSTON -->
     <div class="houston mine">
       <div class="hhead"><span class="ic">F</span><div><div class="who">Houston de Felipe</div><div class="sub">tu workspace · tenant A</div></div></div>
       <div class="hbody">
@@ -126,24 +139,22 @@
           <div class="it"><span class="av" style="background:#8e8e8e">M</span>Marketing</div>
         </div>
         <div class="hmain">
-          <div class="agentcard" id="cardA"><div class="face">🤖</div><div class="nm">Agente de Ventas</div><div class="rl">prospecting → CRM</div></div>
+          <div class="agentrow" id="cardA"><div class="face">🤖</div><div class="nm">Agente de Ventas</div><div class="rl">prospecting → CRM</div></div>
           <div class="colhead">Lo que propone tu agente</div>
-          <div id="slotA"><div class="empty">Escribí una instrucción arriba para que tu agente proponga algo a otro usuario.</div></div>
+          <div id="slotA"><div class="empty">Escribí una instrucción arriba para que tu agente proponga algo al agente de otro usuario.</div></div>
         </div>
       </div>
       <div class="human" id="humanA"><span class="hd">·</span><span id="htxtA">Felipe: en espera</span></div>
     </div>
 
-    <!-- RELAY -->
     <div class="relaycol">
       <div class="envelope" id="env">✉️</div>
       <div class="hub">📡</div>
       <div class="rl">RELAY</div>
       <div class="rsub">CAPCOM<br>Cloudflare</div>
-      <div class="border-note">A y B nunca se ven.<br>Solo el relay toca a ambos.</div>
+      <div class="note">A y B nunca se ven.<br>Solo el relay toca a ambos.</div>
     </div>
 
-    <!-- HOUSTON DEL OTRO -->
     <div class="houston theirs">
       <div class="hhead"><span class="ic">A</span><div><div class="who">Houston de Acme Inc.</div><div class="sub">otro usuario · tenant B</div></div></div>
       <div class="hbody">
@@ -156,9 +167,9 @@
           <div class="it"><span class="av" style="background:#8e8e8e">L</span>Legal</div>
         </div>
         <div class="hmain">
-          <div class="agentcard" id="cardB"><div class="face">🤖</div><div class="nm">Agente de Soporte</div><div class="rl">tickets → success</div></div>
+          <div class="agentrow" id="cardB"><div class="face">🤖</div><div class="nm">Agente de Soporte</div><div class="rl">tickets → success</div></div>
           <div class="colhead">Lo que recibe su agente</div>
-          <div id="slotB"><div class="empty">Acá aparece lo que tu agente le propone al agente del otro usuario.</div></div>
+          <div id="slotB"><div class="empty">Acá aparece, como una misión de Houston, lo que tu agente le propone.</div></div>
         </div>
       </div>
       <div class="human" id="humanB"><span class="hd">·</span><span id="htxtB">Otro usuario: en espera</span></div>
@@ -169,8 +180,12 @@
 
 <script>
 const $=(id)=>document.getElementById(id);
+const ICONS={check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>',pencil:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>',trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>'};
+const INTENT_LABEL={lead_handoff:'traspaso de lead',data_share:'pedido de revisión',meeting:'reunión',other:'compartir skill'};
 function log(m,ok){const e=document.createElement('div');e.className='e'+(ok?' ok':'');e.innerHTML='<time>'+new Date().toLocaleTimeString()+'</time><span>'+m+'</span>';$('log').prepend(e);}
 function flyR(){const e=$('env');e.className='envelope';void e.offsetWidth;e.className='envelope fr';}
+function iconbar(){return '<div class="icons"><button class="ib ok">'+ICONS.check+'</button><button class="ib">'+ICONS.pencil+'</button><button class="ib del">'+ICONS.trash+'</button></div>';}
+function termsHtml(t){return Object.entries(t).map(function(kv){return '<span class="ktag">'+kv[0]+' <b>'+kv[1]+'</b></span>';}).join('');}
 let current=null;
 
 async function go(){
@@ -178,21 +193,16 @@ async function go(){
   const btn=$('send'); btn.disabled=true; btn.textContent='Componiendo…';
   log('Felipe → su agente de Ventas: "'+instruction+'"');
   $('cardA').classList.add('talking');
-  $('slotA').innerHTML='<div class="msg">…</div>';
   try{
     const r=await fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({side:'a',op:'compose',payload:{instruction,toPeerId:'agent-b',fromAgent:'agent-a',toAgent:'agent-b'}})});
     const data=await r.json(); const p=data.proposal; const source=data.source||'fallback';
-    current={proposalId:p.proposalId,subj:p.subject,msg:p.message,terms:p.terms||{},intent:p.intent,
-      a:{id:'agent-a'},b:{id:'agent-b'},
-      bMsg:'Tu agente de Ventas te quiere pasar esto. ¿Lo aceptás?'};
+    current={proposalId:p.proposalId,subj:p.subject,msg:p.message,terms:p.terms||{},intent:p.intent,a:{id:'agent-a'},b:{id:'agent-b'}};
     const srcTxt=source==='claude'?'compuesto por Claude':'interpretado de tu texto';
-    $('slotA').innerHTML='<div class="msg">'+p.message+'<br><span class="src">'+srcTxt+'</span></div>';
-    // A's outbound gate
-    setTimeout(function(){
-      $('humanA').className='human wait'; $('humanA').querySelector('.hd').textContent='?'; $('htxtA').textContent='Felipe: ¿aprobar salida?';
-      $('slotA').innerHTML+='<div class="gate"><div class="glbl">tu aprobación · salida</div><div class="gsubj">'+current.subj+'</div><div class="gmsg">Tu agente quiere proponerle esto al agente de Acme Inc.</div><div class="ga"><button class="ok" onclick="approveA()">Aprobar y enviar →</button><button class="no" onclick="resetUI()">Frenar</button></div></div>';
-      nl.value='';
-    },500);
+    const tag=INTENT_LABEL[p.intent]||'propuesta';
+    // proposal rendered as a real Houston card + outbound gate
+    $('slotA').innerHTML='<div class="kcard gate"><div class="glbl">tu aprobación · salida</div><div class="top"><div class="who"><span class="av" style="background:var(--mine)">V</span><span class="nm">Agente de Ventas</span></div>'+iconbar()+'</div><div class="ktitle">'+p.subject+'</div><div class="kdesc">'+p.message+'</div><div class="ktags"><span class="ktag">'+tag+'</span>'+termsHtml(p.terms||{})+'</div><span class="src">'+srcTxt+'</span><div class="ga"><button class="ok" onclick="approveA()">Aprobar y enviar →</button><button class="no" onclick="resetUI()">Frenar</button></div></div>';
+    $('humanA').className='human wait'; $('humanA').querySelector('.hd').textContent='?'; $('htxtA').textContent='Felipe: ¿aprobar salida?';
+    nl.value='';
   }catch(e){ log('Error al componer: '+e,false); $('slotA').innerHTML='<div class="empty">Error. Reintentá.</div>'; }
   finally{ btn.disabled=false; btn.textContent='Componer y proponer'; $('cardA').classList.remove('talking'); }
 }
@@ -200,9 +210,9 @@ async function go(){
 async function approveA(){
   const s=current; if(!s) return;
   $('humanA').className='human done'; $('humanA').querySelector('.hd').textContent='✓'; $('htxtA').textContent='Felipe: aprobó la salida';
-  $('slotA').innerHTML='<div class="msg">Enviado al relay ✓</div>';
+  const tag=INTENT_LABEL[s.intent]||'propuesta';
+  $('slotA').innerHTML='<div class="kcard"><div class="top"><div class="who"><span class="av" style="background:var(--mine)">V</span><span class="nm">Agente de Ventas</span></div>'+iconbar()+'</div><div class="ktitle">'+s.subj+'</div><div class="kdesc">Enviado al relay ✓ — esperando al otro usuario.</div><div class="ktags"><span class="ktag">'+tag+'</span></div></div>';
   log('Felipe aprobó la SALIDA → el frame cruza el relay hacia Acme Inc.',true);
-  // real calls
   fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({side:'a',op:'propose',payload:{toPeerId:'agent-b',proposal:{proposalId:s.proposalId,fromAgent:s.a.id,toAgent:s.b.id,intent:s.intent,subject:s.subj,terms:s.terms,message:s.msg,requiresApproval:true}}})})
     .then(function(){return fetch('/api/action',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({side:'a',op:'approve',payload:{proposalId:s.proposalId,approved:true}})});})
     .then(function(){log('Propuesta enviada por el relay (cross-tenant real).',true);})
@@ -211,8 +221,7 @@ async function approveA(){
   setTimeout(function(){
     $('cardB').classList.add('talking');
     $('humanB').className='human wait'; $('humanB').querySelector('.hd').textContent='?'; $('htxtB').textContent='Otro usuario: ¿acepta?';
-    var termsHtml=Object.entries(s.terms).map(function(kv){return '<span class="term">'+kv[0]+' <b>'+kv[1]+'</b></span>';}).join('');
-    $('slotB').innerHTML='<div class="msg">Llegó una propuesta del agente de Ventas de Felipe (otro Houston).</div><div class="gate"><div class="glbl">aprobación del otro usuario · entrada</div><div class="gsubj">'+s.subj+'</div><div class="gmsg">'+s.bMsg+'</div><div class="terms">'+termsHtml+'</div><div class="ga"><button class="ok" onclick="approveB()">Aceptar</button><button class="no" onclick="resetUI()">Rechazar</button></div></div>';
+    $('slotB').innerHTML='<div class="kcard gate"><div class="glbl">aprobación del otro usuario · entrada</div><div class="top"><div class="who"><span class="av" style="background:var(--mine)">V</span><span class="nm">de: Agente de Ventas · Felipe</span></div>'+iconbar()+'</div><div class="ktitle">'+s.subj+'</div><div class="kdesc">'+s.msg+'</div><div class="ktags"><span class="ktag">'+tag+'</span>'+termsHtml(s.terms)+'</div><div class="ga"><button class="ok" onclick="approveB()">Aceptar</button><button class="no" onclick="resetUI()">Rechazar</button></div></div>';
     log('El agente de Acme Inc. recibió la propuesta vía relay.',true);
     $('cardB').classList.remove('talking');
   },1300);
@@ -221,11 +230,11 @@ async function approveA(){
 function approveB(){
   const s=current; if(!s) return;
   $('humanB').className='human done'; $('humanB').querySelector('.hd').textContent='✓'; $('htxtB').textContent='Otro usuario: aceptó';
-  $('slotB').innerHTML='<div class="msg">Aceptado ✓ — los dos agentes cerraron el trato.</div>';
+  const tag=INTENT_LABEL[s.intent]||'propuesta';
+  $('slotB').innerHTML='<div class="kcard"><div class="top"><div class="who"><span class="av" style="background:var(--theirs)">S</span><span class="nm">Agente de Soporte</span></div>'+iconbar()+'</div><div class="ktitle">'+s.subj+'</div><div class="kdesc">Aceptado ✓ — los dos agentes cerraron el trato.</div><div class="ktags"><span class="ktag">'+tag+'</span></div></div>';
   log('El otro usuario aprobó la ENTRADA → trato cerrado. Dos personas, dos agentes, dos aprobaciones.',true);
 }
 function resetUI(){ location.reload(); }
-
 async function ping(){ try{const r=await fetch('/api/pending'); await r.json(); }catch(e){} }
 ping();
 </script>
