@@ -5,152 +5,106 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Houston · CAPCOM</title>
 <style>
-  /* ── Houston design tokens (cloned from @houston-ai/core) ── */
   [data-theme="dark"] {
-    --bg: #1e1e1e; --fg: #e5e5e5; --card: #282828; --card-fg: #e5e5e5;
-    --primary: #e5e5e5; --primary-fg: #141414; --secondary: #252525;
-    --muted: #252525; --muted-fg: #9a9a9a; --accent: rgba(255,255,255,0.08);
-    --accent-fg: #d4d4d4; --destructive: #ef4444; --border: rgba(128,128,128,0.10);
-    --sidebar: #171717; --sidebar-fg: #e5e5e5; --sidebar-border: rgba(255,255,255,0.08);
-    --sidebar-accent: rgba(255,255,255,0.10); --success: #22c55e; --warning: #eab308;
-    --radius: 0.5rem;
+    --bg:#1e1e1e; --fg:#e5e5e5; --card:#282828; --primary:#e5e5e5; --primary-fg:#141414;
+    --secondary:#252525; --muted-fg:#9a9a9a; --accent:rgba(255,255,255,0.08);
+    --destructive:#ef4444; --border:rgba(128,128,128,0.10); --sidebar:#171717;
+    --sidebar-border:rgba(255,255,255,0.08); --sidebar-accent:rgba(255,255,255,0.10);
+    --success:#22c55e; --warning:#eab308; --radius:0.5rem;
   }
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    background: var(--bg); color: var(--fg); height: 100vh; overflow: hidden;
-    font-family: ui-sans-serif, -apple-system, system-ui, "Segoe UI", Helvetica, Arial, sans-serif;
-    display: flex;
-  }
-  /* ── Sidebar (Houston layout) ── */
-  .sidebar {
-    width: 240px; background: var(--sidebar); border-right: 1px solid var(--sidebar-border);
-    display: flex; flex-direction: column; flex-shrink: 0;
-  }
-  .sidebar .brand {
-    padding: 16px 18px; font-weight: 600; font-size: 15px; display: flex; align-items: center; gap: 9px;
-    border-bottom: 1px solid var(--sidebar-border);
-  }
-  .sidebar .brand .logo {
-    width: 22px; height: 22px; border-radius: 6px; background: var(--primary);
-    color: var(--primary-fg); display: grid; place-items: center; font-size: 13px; font-weight: 700;
-  }
-  .sidebar .section { padding: 14px 12px 6px; font-size: 11px; color: var(--muted-fg); text-transform: uppercase; letter-spacing: 0.06em; }
-  .nav-item {
-    margin: 1px 8px; padding: 8px 10px; border-radius: var(--radius); font-size: 13.5px;
-    color: var(--sidebar-fg); display: flex; align-items: center; gap: 9px; cursor: pointer;
-  }
-  .nav-item:hover { background: var(--sidebar-accent); }
-  .nav-item.active { background: var(--sidebar-accent); font-weight: 500; }
-  .nav-item .ic { width: 16px; height: 16px; opacity: 0.7; flex-shrink: 0; }
-  .nav-item .badge {
-    margin-left: auto; background: var(--primary); color: var(--primary-fg);
-    font-size: 10px; font-weight: 600; border-radius: 9999px; padding: 1px 7px; min-width: 18px; text-align: center;
-  }
-  /* ── Main ── */
-  .main { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
-  .topbar {
-    height: 52px; border-bottom: 1px solid var(--border); display: flex; align-items: center;
-    padding: 0 22px; gap: 12px; flex-shrink: 0;
-  }
-  .topbar h1 { font-size: 15px; font-weight: 600; }
-  .topbar .desc { font-size: 12.5px; color: var(--muted-fg); }
-  .topbar .live {
-    margin-left: auto; font-size: 12px; color: var(--success); display: flex; align-items: center; gap: 7px;
-  }
-  .topbar .live::before { content:''; width:7px; height:7px; border-radius:50%; background: var(--success); animation: pulse 2s infinite; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { background:var(--bg); color:var(--fg); height:100vh; overflow:hidden; font-family:ui-sans-serif,-apple-system,system-ui,"Segoe UI",Helvetica,Arial,sans-serif; display:flex; }
+  .sidebar { width:240px; background:var(--sidebar); border-right:1px solid var(--sidebar-border); display:flex; flex-direction:column; flex-shrink:0; }
+  .brand { padding:16px 18px; font-weight:600; font-size:15px; display:flex; align-items:center; gap:9px; border-bottom:1px solid var(--sidebar-border); }
+  .brand .logo { width:22px; height:22px; border-radius:6px; background:var(--primary); color:var(--primary-fg); display:grid; place-items:center; font-size:13px; font-weight:700; }
+  .section { padding:14px 12px 6px; font-size:11px; color:var(--muted-fg); text-transform:uppercase; letter-spacing:0.06em; }
+  .nav-item { margin:1px 8px; padding:8px 10px; border-radius:var(--radius); font-size:13.5px; display:flex; align-items:center; gap:9px; cursor:pointer; }
+  .nav-item:hover { background:var(--sidebar-accent); }
+  .nav-item.active { background:var(--sidebar-accent); font-weight:500; }
+  .nav-item .badge { margin-left:auto; background:var(--primary); color:var(--primary-fg); font-size:10px; font-weight:600; border-radius:9999px; padding:1px 7px; min-width:18px; text-align:center; }
+  .main { flex:1; display:flex; flex-direction:column; overflow:hidden; }
+  .topbar { height:52px; border-bottom:1px solid var(--border); display:flex; align-items:center; padding:0 22px; gap:12px; flex-shrink:0; }
+  .topbar h1 { font-size:15px; font-weight:600; }
+  .topbar .desc { font-size:12.5px; color:var(--muted-fg); }
+  .topbar .live { margin-left:auto; font-size:12px; color:var(--success); display:flex; align-items:center; gap:7px; }
+  .topbar .live::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--success); animation:pulse 2s infinite; }
   @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
-  .tabs { display: flex; gap: 2px; padding: 0 18px; border-bottom: 1px solid var(--border); flex-shrink: 0; }
-  .tab { padding: 11px 14px; font-size: 13px; color: var(--muted-fg); border-bottom: 2px solid transparent; cursor: pointer; }
-  .tab.active { color: var(--fg); border-bottom-color: var(--primary); }
-  /* ── Board ── */
-  .board { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; padding: 22px; overflow-y: auto; }
-  .column { display: flex; flex-direction: column; min-width: 0; }
-  .col-head { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; font-size: 13px; font-weight: 600; }
-  .col-head .agent-ic { width: 26px; height: 26px; border-radius: 7px; background: var(--accent); display: grid; place-items: center; font-size: 13px; }
-  .col-head .role { font-weight: 400; color: var(--muted-fg); font-size: 12px; }
-  .col-head .count { margin-left: auto; font-size: 11px; color: var(--muted-fg); background: var(--secondary); border-radius: 9999px; padding: 2px 8px; }
-  .empty { color: var(--muted-fg); font-size: 13px; padding: 28px 14px; text-align: center; border: 1px dashed var(--border); border-radius: var(--radius); }
-  /* ── Card (kanban) ── */
-  .card {
-    background: var(--card); color: var(--card-fg); border: 1px solid var(--border);
-    border-radius: var(--radius); padding: 14px; margin-bottom: 12px; animation: rise 0.35s ease;
-  }
-  @keyframes rise { from{opacity:0; transform:translateY(6px)} to{opacity:1; transform:none} }
-  .card .row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
-  .card .chip {
-    font-size: 10.5px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
-    padding: 2px 8px; border-radius: 9999px; background: rgba(234,179,8,0.18); color: var(--warning);
-  }
-  .card .intent { font-size: 11px; color: var(--muted-fg); }
-  .card h3 { font-size: 14.5px; font-weight: 600; margin-bottom: 4px; }
-  .card .peer { font-size: 12px; color: var(--muted-fg); margin-bottom: 10px; }
-  .card .peer b { color: var(--fg); font-weight: 500; }
-  .card .msg { font-size: 13px; line-height: 1.5; background: var(--secondary); border-radius: var(--radius); padding: 9px 11px; margin-bottom: 10px; }
-  .terms { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 13px; }
-  .term { font-size: 11px; color: var(--muted-fg); background: var(--secondary); border: 1px solid var(--border); border-radius: 5px; padding: 3px 7px; }
-  .term b { color: var(--fg); font-weight: 500; }
-  .acts { display: flex; gap: 8px; }
-  button {
-    font-family: inherit; font-size: 12.5px; font-weight: 500; padding: 7px 12px;
-    border-radius: var(--radius); border: 1px solid var(--border); cursor: pointer; transition: opacity 0.15s;
-  }
-  .approve { flex: 1; background: var(--primary); color: var(--primary-fg); border-color: var(--primary); }
-  .approve:hover { opacity: 0.9; }
-  .reject { background: transparent; color: var(--muted-fg); }
-  .reject:hover { color: var(--destructive); border-color: var(--destructive); }
-  .propose-btn {
-    margin: 0 12px 12px; background: transparent; color: var(--muted-fg);
-    border: 1px dashed var(--border); width: calc(100% - 24px); padding: 10px;
-  }
-  .propose-btn:hover { color: var(--fg); border-style: solid; }
-  /* ── Activity log ── */
-  .log { border-top: 1px solid var(--border); padding: 10px 22px; max-height: 110px; overflow-y: auto; flex-shrink: 0; }
-  .log .entry { font-size: 12px; color: var(--muted-fg); padding: 2px 0; display: flex; gap: 10px; }
-  .log .entry time { color: var(--muted-fg); opacity: 0.6; font-variant-numeric: tabular-nums; }
-  .log .entry.ok { color: var(--fg); }
+  .tabs { display:flex; gap:2px; padding:0 18px; border-bottom:1px solid var(--border); flex-shrink:0; }
+  .tab { padding:11px 14px; font-size:13px; color:var(--muted-fg); border-bottom:2px solid transparent; cursor:pointer; }
+  .tab.active { color:var(--fg); border-bottom-color:var(--primary); }
+  .toolbar { display:flex; gap:8px; padding:14px 22px 0; flex-wrap:wrap; }
+  .mission-btn { font-family:inherit; font-size:12.5px; font-weight:500; padding:8px 12px; border-radius:var(--radius); border:1px solid var(--border); background:transparent; color:var(--fg); cursor:pointer; display:flex; align-items:center; gap:7px; transition:all 0.15s; }
+  .mission-btn:hover { background:var(--accent); }
+  .mission-btn .ix { width:16px; height:16px; border-radius:4px; display:grid; place-items:center; font-size:10px; font-weight:700; }
+  .board { flex:1; display:grid; grid-template-columns:1fr 1fr; gap:18px; padding:18px 22px; overflow-y:auto; }
+  .column { display:flex; flex-direction:column; min-width:0; }
+  .col-head { display:flex; align-items:center; gap:9px; margin-bottom:14px; font-size:13px; font-weight:600; }
+  .col-head .agent-ic { width:26px; height:26px; border-radius:7px; background:var(--accent); display:grid; place-items:center; font-size:12px; font-weight:700; }
+  .col-head .role { font-weight:400; color:var(--muted-fg); font-size:12px; }
+  .col-head .count { margin-left:auto; font-size:11px; color:var(--muted-fg); background:var(--secondary); border-radius:9999px; padding:2px 8px; }
+  .empty { color:var(--muted-fg); font-size:13px; padding:28px 14px; text-align:center; border:1px dashed var(--border); border-radius:var(--radius); }
+  .card { background:var(--card); border:1px solid var(--border); border-radius:var(--radius); padding:14px; margin-bottom:12px; animation:rise 0.35s ease; }
+  @keyframes rise { from{opacity:0; transform:translateY(6px)} to{opacity:1} }
+  .card .row { display:flex; align-items:center; gap:8px; margin-bottom:8px; }
+  .chip { font-size:10.5px; font-weight:600; letter-spacing:0.04em; text-transform:uppercase; padding:2px 8px; border-radius:9999px; }
+  .chip.gate { background:rgba(234,179,8,0.18); color:var(--warning); }
+  .chip.kind { background:var(--secondary); color:var(--muted-fg); }
+  .card h3 { font-size:14.5px; font-weight:600; margin-bottom:4px; }
+  .card .peer { font-size:12px; color:var(--muted-fg); margin-bottom:10px; }
+  .card .peer b { color:var(--fg); font-weight:500; }
+  .card .msg { font-size:13px; line-height:1.5; background:var(--secondary); border-radius:var(--radius); padding:9px 11px; margin-bottom:10px; }
+  .terms { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:13px; }
+  .term { font-size:11px; color:var(--muted-fg); background:var(--secondary); border:1px solid var(--border); border-radius:5px; padding:3px 7px; }
+  .term b { color:var(--fg); font-weight:500; }
+  .acts { display:flex; gap:8px; }
+  button.approve { flex:1; font-family:inherit; font-size:12.5px; font-weight:500; padding:7px 12px; border-radius:var(--radius); background:var(--primary); color:var(--primary-fg); border:none; cursor:pointer; }
+  button.approve:hover { opacity:0.9; }
+  button.reject { font-family:inherit; font-size:12.5px; font-weight:500; padding:7px 12px; border-radius:var(--radius); background:transparent; color:var(--muted-fg); border:1px solid var(--border); cursor:pointer; }
+  button.reject:hover { color:var(--destructive); border-color:var(--destructive); }
+  .log { border-top:1px solid var(--border); padding:10px 22px; max-height:90px; overflow-y:auto; flex-shrink:0; }
+  .log .entry { font-size:12px; color:var(--muted-fg); padding:2px 0; display:flex; gap:10px; }
+  .log .entry time { opacity:0.6; font-variant-numeric:tabular-nums; }
+  .log .entry.ok { color:var(--fg); }
 </style>
 </head>
 <body>
 <aside class="sidebar">
   <div class="brand"><span class="logo">H</span> Houston</div>
   <div class="section">Workspace</div>
-  <div class="nav-item">📁 Tax Practice</div>
-  <div class="nav-item active">🛰 CAPCOM <span class="badge" id="nav-badge">0</span></div>
-  <div class="nav-item">📒 Bookkeeper</div>
-  <div class="section">Agents</div>
-  <div class="nav-item">✉️ Outbound Agent</div>
-  <div class="nav-item">📥 Inbound Agent</div>
+  <div class="nav-item">Tax Practice</div>
+  <div class="nav-item active">CAPCOM <span class="badge" id="nav-badge">0</span></div>
+  <div class="nav-item">Bookkeeper</div>
+  <div class="section">Tenants in this room</div>
+  <div class="nav-item" id="nav-a">— · tenant A</div>
+  <div class="nav-item" id="nav-b">— · tenant B</div>
 </aside>
 
 <div class="main">
   <div class="topbar">
     <h1>CAPCOM</h1>
-    <span class="desc">Agent-to-agent negotiation · human in the loop</span>
+    <span class="desc">Social interactions between agents across tenants · human in the loop</span>
     <span class="live" id="live">live</span>
   </div>
   <div class="tabs">
-    <div class="tab active">Negotiations</div>
+    <div class="tab active">Interactions</div>
     <div class="tab">Skills</div>
     <div class="tab">Peers</div>
   </div>
 
+  <div class="toolbar">
+    <button class="mission-btn" onclick="ix('handoff')"><span class="ix" style="background:rgba(216,90,48,0.25);color:#F0997B">1</span> Sales → Support: hand off new customer</button>
+    <button class="mission-btn" onclick="ix('review')"><span class="ix" style="background:rgba(127,119,221,0.3);color:#AFA9EC">2</span> Sales → Legal: request contract review</button>
+    <button class="mission-btn" onclick="ix('skill')"><span class="ix" style="background:rgba(186,117,23,0.3);color:#FAC775">3</span> Marketing → Sales: lend a skill</button>
+  </div>
+
   <div class="board">
     <div class="column">
-      <div class="col-head">
-        <span class="agent-ic">✉️</span> Outbound Agent
-        <span class="role">· user A · prospecting</span>
-        <span class="count" id="count-a">0</span>
-      </div>
-      <div id="gates-a"><div class="empty">No pending negotiations</div></div>
-      <button class="propose-btn" onclick="propose()">+ New mission — propose lead to Inbound Agent</button>
+      <div class="col-head"><span class="agent-ic" id="ic-a">A</span> <span id="name-a">Tenant A</span> <span class="role" id="role-a"></span><span class="count" id="count-a">0</span></div>
+      <div id="gates-a"><div class="empty">No pending interactions</div></div>
     </div>
     <div class="column">
-      <div class="col-head">
-        <span class="agent-ic">📥</span> Inbound Agent
-        <span class="role">· user B · incoming mail</span>
-        <span class="count" id="count-b">0</span>
-      </div>
-      <div id="gates-b"><div class="empty">No pending negotiations</div></div>
+      <div class="col-head"><span class="agent-ic" id="ic-b">B</span> <span id="name-b">Tenant B</span> <span class="role" id="role-b"></span><span class="count" id="count-b">0</span></div>
+      <div id="gates-b"><div class="empty">No pending interactions</div></div>
     </div>
   </div>
 
@@ -159,17 +113,52 @@
 
 <script>
 const $ = (id) => document.getElementById(id);
+
+// Three interactions, each with real Houston store agents as the two parties.
+// Same engines + relay underneath; the agent identity rides in the card.
+const SCENES = {
+  handoff: {
+    a: { id:"agent-a", name:"Sales", role:"prospecting → CRM", ic:"S" },
+    b: { id:"agent-b", name:"Support", role:"tickets → success", ic:"Su" },
+    intent:"lead_handoff", kind:"hand off customer",
+    subject:"New customer: Acme Corp",
+    terms:{ account:"Acme Corp", plan:"Enterprise", mrr:5000, owner:"closed-won" },
+    message:"Just closed Acme. Handing the account to your Support agent for onboarding — health scoring and welcome sequence.",
+  },
+  review: {
+    a: { id:"agent-a", name:"Sales", role:"prospecting → CRM", ic:"S" },
+    b: { id:"agent-b", name:"Legal", role:"contracts → compliance", ic:"L" },
+    intent:"data_share", kind:"request review",
+    subject:"Contract review: Acme MSA",
+    terms:{ doc:"Acme-MSA-v3.pdf", redlines:7, deadline:"2026-06-12" },
+    message:"Acme pushed back on liability terms. Can your Legal agent review the redlines before I send the counter?",
+  },
+  skill: {
+    a: { id:"agent-a", name:"Marketing", role:"campaigns → SEO", ic:"M" },
+    b: { id:"agent-b", name:"Sales", role:"prospecting → CRM", ic:"S" },
+    intent:"other", kind:"share skill",
+    subject:"Share skill: seo-outreach-sequences",
+    terms:{ skill:"seo-outreach-sequences", repo:"houston/skills", version:3 },
+    message:"My outreach-sequence skill outperformed on the last campaign. Lending it to your Sales agent — approve to install.",
+  },
+};
+const KIND = { lead_handoff:"hand off", data_share:"request", other:"share skill" };
+
 function log(msg, ok) {
   const e = document.createElement('div');
   e.className = 'entry' + (ok ? ' ok' : '');
   e.innerHTML = `<time>${new Date().toLocaleTimeString()}</time><span>${msg}</span>`;
   $('log').prepend(e);
 }
+function setScene(s) {
+  $('name-a').textContent = s.a.name; $('role-a').textContent = "· "+s.a.role; $('ic-a').textContent = s.a.ic;
+  $('name-b').textContent = s.b.name; $('role-b').textContent = "· "+s.b.role; $('ic-b').textContent = s.b.ic;
+  $('nav-a').textContent = s.a.name+" · tenant A"; $('nav-b').textContent = s.b.name+" · tenant B";
+}
 function card(g, side) {
-  const terms = Object.entries(g.proposal.terms || {})
-    .map(([k,v]) => `<span class="term">${k} <b>${v}</b></span>`).join('');
+  const terms = Object.entries(g.proposal.terms || {}).map(([k,v]) => `<span class="term">${k} <b>${v}</b></span>`).join('');
   return `<div class="card">
-    <div class="row"><span class="chip">${g.direction} gate</span><span class="intent">${g.proposal.intent}</span></div>
+    <div class="row"><span class="chip gate">${g.direction} gate</span><span class="chip kind">${KIND[g.proposal.intent]||g.proposal.intent}</span></div>
     <h3>${g.proposal.subject}</h3>
     <div class="peer">from <b>${g.peer.name}</b> · ${g.peer.role}</div>
     <div class="msg">${g.proposal.message}</div>
@@ -188,27 +177,25 @@ async function poll() {
     for (const [side, data] of [['a', a], ['b', b]]) {
       const n = data.items.length; total += n;
       $(`count-${side}`).textContent = n;
-      $(`gates-${side}`).innerHTML = n ? data.items.map(g => card(g, side)).join('') : '<div class="empty">No pending negotiations</div>';
+      $(`gates-${side}`).innerHTML = n ? data.items.map(g => card(g, side)).join('') : '<div class="empty">No pending interactions</div>';
     }
     $('nav-badge').textContent = total;
     $('live').textContent = 'live';
   } catch { $('live').textContent = 'offline'; }
 }
 async function decide(side, proposalId, approved) {
-  log(`${side.toUpperCase()} human ${approved ? 'approved' : 'rejected'} ${proposalId.slice(0,8)}`, true);
-  await fetch('/api/action', { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ side, op:'approve', payload:{ proposalId, approved } }) });
+  log(`${side==='a'?$('name-a').textContent:$('name-b').textContent} human ${approved?'approved':'rejected'} ${proposalId.slice(0,8)}`, true);
+  await fetch('/api/action', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ side, op:'approve', payload:{ proposalId, approved } }) });
   setTimeout(poll, 400);
 }
-async function propose() {
+async function ix(key) {
+  const s = SCENES[key];
+  setScene(s);
   const proposalId = crypto.randomUUID();
-  log(`Outbound Agent proposing lead ${proposalId.slice(0,8)} to Inbound Agent`);
-  await fetch('/api/action', { method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({ side:'a', op:'propose', payload:{
-      toPeerId:'agent-b',
-      proposal:{ proposalId, fromAgent:'agent-a', toAgent:'agent-b', intent:'lead_handoff',
-        subject:'Lead: Acme Corp', terms:{ leadEmail:'buyer@acme.com', value:5000, deadline:'2026-06-20' },
-        message:'Warm lead, replied twice. Your inbound flow is a better fit.', requiresApproval:true } } }) });
+  log(`${s.a.name} → ${s.b.name}: ${s.kind} · ${proposalId.slice(0,8)}`);
+  await fetch('/api/action', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ side:'a', op:'propose', payload:{
+    toPeerId:'agent-b',
+    proposal:{ proposalId, fromAgent:s.a.id, toAgent:s.b.id, intent:s.intent, subject:s.subject, terms:s.terms, message:s.message, requiresApproval:true } } }) });
   setTimeout(poll, 400);
 }
 poll(); setInterval(poll, 2000);
